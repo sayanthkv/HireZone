@@ -36,6 +36,21 @@ const applyForJob = async (req, res) => {
       resumeLink,
       coverLetter,
     });
+    if (resumeLink) {
+  try {
+    const url = new URL(resumeLink);
+
+    if (!["http:", "https:"].includes(url.protocol)) {
+      return res.status(400).json({
+        message: "Resume link must use HTTP or HTTPS",
+      });
+    }
+  } catch {
+    return res.status(400).json({
+      message: "Please provide a valid resume URL",
+    });
+  }
+}
 
     return res.status(201).json({
       message: "Application submitted successfully",
@@ -53,6 +68,7 @@ const applyForJob = async (req, res) => {
       error: error.message,
     });
   }
+  
 };
 
 // Student views their own applications
