@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import api from "../services/api";
+import { Link } from "react-router-dom";
 
 const initialForm = {
   title: "",
@@ -220,7 +221,12 @@ export default function RecruiterDashboard() {
                 className="secondary-button"
                 onClick={() => handleViewApplicants(job._id)}
               >
-                View applicants
+               <Link
+                  to={`/recruiter/jobs/${job._id}/applicants`}
+                  className="view-applicants-link"
+                >
+                  View Applicants →
+                </Link>
               </button>
             </article>
           ))}

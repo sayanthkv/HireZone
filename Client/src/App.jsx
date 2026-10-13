@@ -10,6 +10,7 @@ import Register from "./pages/Register";
 import StudentDashboard from "./pages/StudentDashboard";
 import RecruiterDashboard from "./pages/RecruiterDashboard";
 import ApplyJob from "./pages/ApplyJob";
+import RecruiterApplicants from "./pages/RecruiterApplicants";
 
 export default function App() {
   return (
@@ -35,6 +36,10 @@ export default function App() {
               path="/recruiter-dashboard"
               element={<RecruiterDashboard />}
             />
+                      <Route
+            path="/recruiter/jobs/:jobId/applicants"
+            element={<RecruiterApplicants />}
+          />
           </Route>
 
           <Route path="*" element={<main className="not-found"><h1>404</h1><p>Page not found.</p></main>} />
