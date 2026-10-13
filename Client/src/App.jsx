@@ -9,6 +9,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import StudentDashboard from "./pages/StudentDashboard";
 import RecruiterDashboard from "./pages/RecruiterDashboard";
+import ApplyJob from "./pages/ApplyJob";
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
               path="/student-dashboard"
               element={<StudentDashboard />}
             />
+            <Route path="/apply/:jobId" element={<ApplyJob />} />
           </Route>
 
           <Route element={<ProtectedRoute allowedRoles={["recruiter"]} />}>
@@ -38,6 +40,7 @@ export default function App() {
           <Route path="*" element={<main className="not-found"><h1>404</h1><p>Page not found.</p></main>} />
         </Routes>
 
+         
         <footer className="site-footer">
           © {new Date().getFullYear()} HireHub · Connecting talent with opportunity.
         </footer>

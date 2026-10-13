@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 
 export default function Home() {
@@ -9,6 +10,7 @@ export default function Home() {
   const [jobType, setJobType] = useState("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -111,9 +113,24 @@ export default function Home() {
                 ))}
               </div>
 
-              <Link to="/login" className="job-apply-link">
-                Login to apply →
-              </Link>
+              
+{user?.role === "student" ? (
+  <Link
+    to={`/apply/${job._id}`}
+    className="job-apply-link"
+  >
+    Apply now →
+  </Link>
+) : !user ? (
+  <Link to="/login" className="job-apply-link">
+    Login to apply →
+  </Link>
+) : (
+  <p className="job-apply-note">
+    Student accounts can apply for jobs.
+  </p>
+)}
+
             </article>
           ))}
         </div>

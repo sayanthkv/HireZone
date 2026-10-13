@@ -58,5 +58,30 @@ const getJobs = async (req, res) => {
     });
   }
 };
+const getJobById = async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id)
+      .populate("postedBy", "name email");
 
-module.exports = { createJob, getJobs };
+    if (!job) {
+      return res.status(404).json({
+        message: "Job not found",
+      });
+    }
+
+    res.status(200).json({ job });
+  } catch (error) {
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        message: "Invalid job ID",
+      });
+    }
+
+    res.status(500).json({
+      message: "Failed to fetch job",
+      error: error.message,
+    });
+  }
+};
+
+module.exports = { createJob, getJobs, getJobById };
