@@ -8,6 +8,7 @@ const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const jobRoutes = require("./routes/jobRoutes");
 const applicationRoutes = require("./routes/applicationRoutes");
+const profileRoutes = require("./routes/profileRoutes");
 
 const app = express();
 
@@ -20,6 +21,8 @@ connectDB();
 app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/applications", applicationRoutes);
+app.use("/api/profile", profileRoutes);
+
 
 app.get("/", (req, res) => {
   res.json({

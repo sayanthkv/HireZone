@@ -1,0 +1,245 @@
+.profile-page {
+  min-height: 75vh;
+  padding: 40px 20px;
+  background: #f5f7fb;
+  color: #172033;
+}
+
+.profile-card {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px;
+  background: #ffffff;
+  border: 1px solid #e5eaf2;
+  border-radius: 18px;
+  box-shadow: 0 8px 30px rgba(24, 39, 75, 0.06);
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid #e8edf5;
+}
+
+.profile-avatar {
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #5046e5, #8175ff);
+  color: #fff;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.profile-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-heading h1 {
+  margin: 0 0 6px;
+  font-size: 27px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.profile-heading p {
+  margin: 0 0 10px;
+  color: #69758a;
+  overflow-wrap: anywhere;
+}
+
+.profile-role {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 20px;
+  background: #eeedff;
+  color: #5145cd;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.profile-section {
+  padding: 28px 0;
+  border-bottom: 1px solid #e8edf5;
+}
+
+.profile-section h2 {
+  margin: 0 0 22px;
+  font-size: 19px;
+  font-weight: 750;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.profile-page label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+  color: #344054;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.profile-page input,
+.profile-page textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid #d8dfeb;
+  border-radius: 9px;
+  outline: none;
+  background: #fff;
+  color: #172033;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.profile-page input:focus,
+.profile-page textarea:focus {
+  border-color: #6558e8;
+  box-shadow: 0 0 0 3px rgba(101, 88, 232, 0.12);
+}
+
+.profile-page input:disabled,
+.profile-page textarea:disabled {
+  background: #f7f8fb;
+  color: #667085;
+  cursor: default;
+  opacity: 1;
+}
+
+.profile-page textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+
+.profile-full-field {
+  display: flex;
+}
+
+.profile-page small {
+  color: #667085;
+  font-weight: 400;
+}
+
+.profile-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 19px;
+  border: 1px solid #5145cd;
+  border-radius: 9px;
+  background: #5145cd;
+  color: white;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.profile-button:hover {
+  background: #4035b5;
+  transform: translateY(-1px);
+}
+
+.profile-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.profile-secondary {
+  border-color: #d8dfeb;
+  background: #fff;
+  color: #344054;
+}
+
+.profile-secondary:hover {
+  background: #f2f4f8;
+}
+
+.profile-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 24px;
+}
+
+.profile-alert {
+  margin-top: 20px;
+  padding: 12px 15px;
+  border-radius: 9px;
+  font-size: 14px;
+}
+
+.profile-success {
+  background: #eaf8ef;
+  color: #176b39;
+}
+
+.profile-error {
+  background: #fff0f0;
+  color: #b42318;
+}
+
+@media (max-width: 600px) {
+  .profile-page {
+    padding: 22px 12px;
+  }
+
+  .profile-card {
+    padding: 20px 16px;
+  }
+
+  .profile-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+
+  .profile-avatar {
+    width: 58px;
+    height: 58px;
+    font-size: 24px;
+  }
+
+  .profile-heading {
+    flex-basis: calc(100% - 76px);
+  }
+
+  .profile-heading h1 {
+    font-size: 22px;
+  }
+
+  .profile-header > .profile-button {
+    width: 100%;
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .profile-actions {
+    flex-direction: column-reverse;
+  }
+
+  .profile-actions .profile-button {
+    width: 100%;
+  }
+}

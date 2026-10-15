@@ -11,6 +11,7 @@ import StudentDashboard from "./pages/StudentDashboard";
 import RecruiterDashboard from "./pages/RecruiterDashboard";
 import ApplyJob from "./pages/ApplyJob";
 import RecruiterApplicants from "./pages/RecruiterApplicants";
+import Profile from "./pages/Profile";
 
 export default function App() {
   return (
@@ -42,8 +43,18 @@ export default function App() {
           />
           </Route>
 
+          <Route
+          element={
+            <ProtectedRoute allowedRoles={["student", "recruiter"]} />
+          }
+        >
+          <Route path="/profile" element={<Profile />} />
+        </Route>
+
           <Route path="*" element={<main className="not-found"><h1>404</h1><p>Page not found.</p></main>} />
         </Routes>
+
+                
 
          
         <footer className="site-footer">

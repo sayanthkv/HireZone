@@ -27,6 +27,55 @@ const userSchema = new mongoose.Schema(
       enum: ["student", "recruiter", "admin"],
       default: "student",
     },
+
+    phone: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    location: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+      default: "",
+    },
+
+    skills: {
+      type: [String],
+      default: [],
+    },
+
+    education: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    resumeLink: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    companyName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    companyDescription: {
+      type: String,
+      trim: true,
+      maxlength: 2000,
+      default: "",
+    },
   },
   {
     timestamps: true,

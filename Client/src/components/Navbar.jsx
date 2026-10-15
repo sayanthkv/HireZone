@@ -14,7 +14,7 @@ export default function Navbar() {
   return (
     <nav className="navbar">
       <Link to="/" className="brand">
-        Hire<span>Hub</span>
+        Hire<span>Zone</span>
       </Link>
 
       <div className="nav-links">
