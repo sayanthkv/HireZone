@@ -1,7 +1,7 @@
-
 import { useEffect, useState } from "react";
-import api from "../services/api";
 import { Link } from "react-router-dom";
+import api from "../services/api";
+import "./HireZoneFeatures.css";
 
 const initialForm = {
   title: "",
@@ -13,29 +13,48 @@ const initialForm = {
   skills: "",
 };
 
+const statusOptions = [
+  "Pending",
+  "Reviewed",
+  "Shortlisted",
+  "Rejected",
+  "Hired",
+];
+
 export default function RecruiterDashboard() {
   const [jobs, setJobs] = useState([]);
   const [form, setForm] = useState(initialForm);
+  const [editingJobId, setEditingJobId] = useState(null);
   const [selectedJob, setSelectedJob] = useState("");
   const [applicants, setApplicants] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deletingJobId, setDeletingJobId] = useState("");
+  const [applicantsLoading, setApplicantsLoading] = useState(false);
+  const [updatingApplicationId, setUpdatingApplicationId] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   const fetchJobs = async () => {
     try {
-      const response = await api.get("/jobs");
+      setError("");
+
+      const response = await api.get("/jobs?limit=100");
       const allJobs = response.data.jobs || [];
-      const user = JSON.parse(localStorage.getItem("hirehub_user") || "null");
+      const user = JSON.parse(
+        localStorage.getItem("hirehub_user") || "null"
+      );
 
       const ownJobs = allJobs.filter((job) => {
         const owner = job.postedBy?._id || job.postedBy;
-        return owner && user && String(owner) === String(user.id);
+        const userId = user?._id || user?.id;
+
+        return owner && userId && String(owner) === String(userId);
       });
 
       setJobs(ownJobs);
-    } catch (error) {
-      setError(error.response?.data?.message || "Could not load jobs");
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not load jobs");
     } finally {
       setLoading(false);
     }
@@ -46,36 +65,115 @@ export default function RecruiterDashboard() {
   }, []);
 
   const handleChange = (event) => {
-    setForm({ ...form, [event.target.name]: event.target.value });
+    const { name, value } = event.target;
+    setForm((previous) => ({ ...previous, [name]: value }));
   };
 
-  const handleCreateJob = async (event) => {
+  const buildPayload = () => ({
+    title: form.title.trim(),
+    company: form.company.trim(),
+    location: form.location.trim(),
+    jobType: form.jobType,
+    description: form.description.trim(),
+    salary: form.salary.trim() || "Not specified",
+    skills: form.skills
+      .split(",")
+      .map((skill) => skill.trim())
+      .filter(Boolean),
+  });
+
+  const resetForm = () => {
+    setForm(initialForm);
+    setEditingJobId(null);
+  };
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    setMessage("");
+    setError("");
+    setSaving(true);
+
+    try {
+      const payload = buildPayload();
+
+      if (editingJobId) {
+        await api.put(`/jobs/${editingJobId}`, payload);
+        setMessage("Job updated successfully.");
+      } else {
+        await api.post("/jobs", payload);
+        setMessage("Job published successfully.");
+      }
+
+      resetForm();
+      await fetchJobs();
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          (editingJobId ? "Could not update job" : "Could not create job")
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startEditing = (job) => {
+    setForm({
+      title: job.title || "",
+      company: job.company || "",
+      location: job.location || "",
+      jobType: job.jobType || "Full-time",
+      description: job.description || "",
+      salary:
+        job.salary === "Not specified" ? "" : job.salary || "",
+      skills: (job.skills || []).join(", "),
+    });
+
+    setEditingJobId(job._id);
+    setMessage("");
+    setError("");
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleDeleteJob = async (job) => {
+    const confirmed = window.confirm(
+      `Delete "${job.title}" at ${job.company}?\n\nThis removes the job listing. Existing applications may remain in the database.`
+    );
+
+    if (!confirmed) return;
+
+    setDeletingJobId(job._id);
     setMessage("");
     setError("");
 
     try {
-      const payload = {
-        ...form,
-        skills: form.skills
-          .split(",")
-          .map((skill) => skill.trim())
-          .filter(Boolean),
-      };
+      await api.delete(`/jobs/${job._id}`);
 
-      await api.post("/jobs", payload);
+      setJobs((previous) =>
+        previous.filter((item) => item._id !== job._id)
+      );
 
-      setMessage("Job created successfully!");
-      setForm(initialForm);
-      await fetchJobs();
-    } catch (error) {
-      setError(error.response?.data?.message || "Could not create job");
+      if (editingJobId === job._id) {
+        resetForm();
+      }
+
+      if (selectedJob === job._id) {
+        setSelectedJob("");
+        setApplicants([]);
+      }
+
+      setMessage("Job deleted successfully.");
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not delete job");
+    } finally {
+      setDeletingJobId("");
     }
   };
 
   const handleViewApplicants = async (jobId) => {
     setSelectedJob(jobId);
     setApplicants([]);
+    setApplicantsLoading(true);
     setMessage("");
     setError("");
 
@@ -85,12 +183,15 @@ export default function RecruiterDashboard() {
       );
 
       setApplicants(response.data.applications || []);
-    } catch (error) {
-      setError(error.response?.data?.message || "Could not load applicants");
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not load applicants");
+    } finally {
+      setApplicantsLoading(false);
     }
   };
 
   const handleStatusChange = async (applicationId, status) => {
+    setUpdatingApplicationId(applicationId);
     setMessage("");
     setError("");
 
@@ -106,10 +207,17 @@ export default function RecruiterDashboard() {
       );
 
       setMessage("Application status updated.");
-    } catch (error) {
-      setError(error.response?.data?.message || "Could not update status");
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Could not update application status"
+      );
+    } finally {
+      setUpdatingApplicationId("");
     }
   };
+
+  const selectedJobTitle =
+    jobs.find((job) => job._id === selectedJob)?.title || "Selected job";
 
   return (
     <main className="dashboard-page">
@@ -119,13 +227,22 @@ export default function RecruiterDashboard() {
         <p>Create opportunities and manage candidates.</p>
       </section>
 
-      {message && <div className="success-message">{message}</div>}
-      {error && <div className="error-message">{error}</div>}
+      {message && (
+        <div className="success-message" role="status">
+          {message}
+        </div>
+      )}
 
-      <section className="dashboard-panel">
-        <h2>Post a new job</h2>
+      {error && (
+        <div className="error-message" role="alert">
+          {error}
+        </div>
+      )}
 
-        <form className="job-form" onSubmit={handleCreateJob}>
+      <section className="dashboard-panel" id="job-editor">
+        <h2>{editingJobId ? "Edit job listing" : "Post a new job"}</h2>
+
+        <form className="job-form" onSubmit={handleSubmit}>
           <label>
             Job title
             <input
@@ -133,6 +250,7 @@ export default function RecruiterDashboard() {
               value={form.title}
               onChange={handleChange}
               required
+              maxLength={150}
             />
           </label>
 
@@ -143,6 +261,7 @@ export default function RecruiterDashboard() {
               value={form.company}
               onChange={handleChange}
               required
+              maxLength={150}
             />
           </label>
 
@@ -153,12 +272,17 @@ export default function RecruiterDashboard() {
               value={form.location}
               onChange={handleChange}
               required
+              maxLength={150}
             />
           </label>
 
           <label>
             Job type
-            <select name="jobType" value={form.jobType} onChange={handleChange}>
+            <select
+              name="jobType"
+              value={form.jobType}
+              onChange={handleChange}
+            >
               <option>Full-time</option>
               <option>Part-time</option>
               <option>Internship</option>
@@ -173,6 +297,7 @@ export default function RecruiterDashboard() {
               value={form.salary}
               onChange={handleChange}
               placeholder="e.g. ₹15,000 per month"
+              maxLength={100}
             />
           </label>
 
@@ -194,40 +319,107 @@ export default function RecruiterDashboard() {
               onChange={handleChange}
               required
               rows={5}
+              maxLength={10000}
             />
           </label>
 
-          <button className="primary-button" type="submit">
-            Publish job
-          </button>
+          <div className="form-actions full-width">
+            <button className="primary-button" type="submit" disabled={saving}>
+              {saving
+                ? "Saving..."
+                : editingJobId
+                  ? "Save changes"
+                  : "Publish job"}
+            </button>
+
+            {editingJobId && (
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={resetForm}
+                disabled={saving}
+              >
+                Cancel editing
+              </button>
+            )}
+          </div>
         </form>
       </section>
 
       <section className="dashboard-panel">
-        <h2>My job listings</h2>
+        <div className="panel-heading-row">
+          <div>
+            <h2>My job listings</h2>
+            <p className="muted">{jobs.length} jobs posted by you</p>
+          </div>
+
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={fetchJobs}
+            disabled={loading}
+          >
+            Refresh
+          </button>
+        </div>
 
         {loading && <p>Loading jobs...</p>}
-        {!loading && jobs.length === 0 && <p>You haven't posted any jobs yet.</p>}
+
+        {!loading && jobs.length === 0 && (
+          <div className="empty-state">
+            <h3>No job listings yet</h3>
+            <p>Publish your first opportunity using the form above.</p>
+          </div>
+        )}
 
         <div className="recruiter-job-list">
           {jobs.map((job) => (
-            <article className="application-card" key={job._id}>
-              <div>
+            <article className="application-card recruiter-job-card" key={job._id}>
+              <div className="recruiter-job-info">
+                <span className="job-type">{job.jobType}</span>
                 <h3>{job.title}</h3>
                 <p>{job.company} · {job.location}</p>
+                <p className="muted">
+                  Posted{" "}
+                  {job.createdAt
+                    ? new Date(job.createdAt).toLocaleDateString()
+                    : "date unavailable"}
+                </p>
               </div>
 
-              <button
-                className="secondary-button"
-                onClick={() => handleViewApplicants(job._id)}
-              >
-               <Link
-                  to={`/recruiter/jobs/${job._id}/applicants`}
-                  className="view-applicants-link"
+              <div className="recruiter-job-actions">
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => startEditing(job)}
                 >
-                  View Applicants →
+                  Edit
+                </button>
+
+                <button
+                  className="danger-button"
+                  type="button"
+                  onClick={() => handleDeleteJob(job)}
+                  disabled={deletingJobId === job._id}
+                >
+                  {deletingJobId === job._id ? "Deleting..." : "Delete"}
+                </button>
+
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => handleViewApplicants(job._id)}
+                >
+                  View applicants
+                </button>
+
+                <Link
+                  to={`/recruiter/jobs/${job._id}/applicants`}
+                  className="text-link"
+                >
+                  Open applicants page →
                 </Link>
-              </button>
+              </div>
             </article>
           ))}
         </div>
@@ -235,52 +427,87 @@ export default function RecruiterDashboard() {
 
       {selectedJob && (
         <section className="dashboard-panel">
-          <h2>Applicants</h2>
+          <div className="panel-heading-row">
+            <div>
+              <h2>Applicants</h2>
+              <p className="muted">{selectedJobTitle}</p>
+            </div>
 
-          {applicants.length === 0 ? (
-            <p>No applicants found for this job yet.</p>
-          ) : (
-            <div className="applicant-list">
-              {applicants.map((application) => (
-                <article className="application-card" key={application._id}>
-                  <div>
-                    <h3>{application.student?.name}</h3>
-                    <p>{application.student?.email}</p>
-                    {application.resumeLink && (
-                      <p>
-                        <a
-                          href={application.resumeLink}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          View resume link
-                        </a>
-                      </p>
-                    )}
-                    {application.coverLetter && (
-                      <p>{application.coverLetter}</p>
-                    )}
-                  </div>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => {
+                setSelectedJob("");
+                setApplicants([]);
+              }}
+            >
+              Close
+            </button>
+          </div>
 
-                  <label className="status-control">
-                    Status
-                    <select
-                      value={application.status}
-                      onChange={(event) =>
-                        handleStatusChange(application._id, event.target.value)
-                      }
-                    >
-                      <option>Pending</option>
-                      <option>Reviewed</option>
-                      <option>Shortlisted</option>
-                      <option>Rejected</option>
-                      <option>Hired</option>
-                    </select>
-                  </label>
-                </article>
-              ))}
+          {applicantsLoading && <p>Loading applicants...</p>}
+
+          {!applicantsLoading && applicants.length === 0 && (
+            <div className="empty-state">
+              <h3>No applicants yet</h3>
+              <p>Applications for this job will appear here.</p>
             </div>
           )}
+
+          <div className="applicant-list">
+            {applicants.map((application) => (
+              <article className="application-card" key={application._id}>
+                <div className="applicant-details">
+                  <h3>{application.student?.name || "Student"}</h3>
+                  <p>{application.student?.email || "Email unavailable"}</p>
+
+                  <p className="muted">
+                    Applied{" "}
+                    {application.createdAt
+                      ? new Date(application.createdAt).toLocaleDateString()
+                      : "date unavailable"}
+                  </p>
+
+                  {application.resumeLink && (
+                    <p>
+                      <a
+                        href={application.resumeLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        View resume ↗
+                      </a>
+                    </p>
+                  )}
+
+                  {application.coverLetter && (
+                    <details className="cover-letter-details">
+                      <summary>Read cover letter</summary>
+                      <p>{application.coverLetter}</p>
+                    </details>
+                  )}
+                </div>
+
+                <label className="status-control">
+                  Application status
+                  <select
+                    value={application.status}
+                    disabled={updatingApplicationId === application._id}
+                    onChange={(event) =>
+                      handleStatusChange(application._id, event.target.value)
+                    }
+                  >
+                    {statusOptions.map((status) => (
+                      <option key={status}>{status}</option>
+                    ))}
+                  </select>
+                  {updatingApplicationId === application._id && (
+                    <span className="muted">Updating...</span>
+                  )}
+                </label>
+              </article>
+            ))}
+          </div>
         </section>
       )}
     </main>

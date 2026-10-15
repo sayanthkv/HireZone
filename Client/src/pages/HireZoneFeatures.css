@@ -1,0 +1,346 @@
+
+/* HireZone feature additions */
+
+.advanced-search {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.advanced-search input,
+.advanced-search select {
+  flex: 1 1 145px;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid #e5e6f2;
+  border-radius: 8px;
+  color: #353957;
+}
+
+.advanced-search input:focus,
+.advanced-search select:focus {
+  border-color: #827be9;
+  outline: 2px solid #635bdb18;
+}
+
+.advanced-search .primary-button,
+.advanced-search .secondary-button {
+  flex-shrink: 0;
+}
+
+.job-apply-note {
+  margin-top: 20px;
+  padding-top: 17px;
+  border-top: 1px solid #eef0f5;
+  color: #777b90;
+  font-size: 13px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 35px;
+}
+
+.pagination span {
+  color: #555b73;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.panel-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.panel-heading-row h2 {
+  margin-bottom: 7px;
+}
+
+.panel-heading-row .muted {
+  margin: 0;
+}
+
+.recruiter-job-card {
+  align-items: flex-start;
+}
+
+.recruiter-job-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.recruiter-job-info .job-type {
+  margin-bottom: 10px;
+}
+
+.recruiter-job-info h3 {
+  overflow-wrap: anywhere;
+}
+
+.recruiter-job-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 9px;
+  max-width: 390px;
+}
+
+.recruiter-job-actions .secondary-button,
+.recruiter-job-actions .danger-button {
+  font-size: 12px;
+}
+
+.danger-button {
+  padding: 10px 14px;
+  border: 1px solid #f0c7cb;
+  border-radius: 8px;
+  background: #fff4f4;
+  color: #a42b39;
+  font-weight: 700;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.danger-button:hover:not(:disabled) {
+  background: #ffe4e6;
+  border-color: #e9a6ad;
+}
+
+.danger-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.text-link {
+  color: #635bdb;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.text-link:hover {
+  text-decoration: underline;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.form-actions .primary-button,
+.form-actions .secondary-button {
+  min-height: 43px;
+}
+
+.applicant-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.applicant-details h3,
+.student-application-info h3 {
+  overflow-wrap: anywhere;
+}
+
+.cover-letter-details {
+  margin-top: 12px;
+  max-width: 650px;
+  color: #565b71;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.cover-letter-details summary {
+  width: fit-content;
+  color: #635bdb;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cover-letter-details p {
+  margin-top: 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.application-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.application-filters label {
+  color: #454a62;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.application-filters select {
+  min-width: 190px;
+  padding: 10px 12px;
+  border: 1px solid #dedfec;
+  border-radius: 8px;
+  background: #fff;
+  color: #282c43;
+}
+
+.application-filters select:focus {
+  border-color: #827be9;
+  outline: 2px solid #635bdb18;
+}
+
+.student-application-card {
+  align-items: flex-start;
+}
+
+.student-application-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.student-application-info h3 {
+  margin-top: 10px;
+  font-family: "Manrope", sans-serif;
+  font-size: 18px;
+}
+
+.application-date {
+  color: #85899b;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.application-job-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.application-job-meta span {
+  padding: 6px 9px;
+  border: 1px solid #eaebf3;
+  border-radius: 6px;
+  background: #fafaff;
+  color: #62677d;
+  font-size: 11px;
+}
+
+.application-resume {
+  margin-top: 12px !important;
+}
+
+.application-resume a {
+  color: #635bdb;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.application-resume a:hover {
+  text-decoration: underline;
+}
+
+.student-application-status {
+  flex-shrink: 0;
+}
+
+.loading-message {
+  color: #696e85;
+  font-size: 14px;
+}
+
+.inline-retry-button {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #a42b39;
+  font-weight: 800;
+  text-decoration: underline;
+}
+
+@media (max-width: 760px) {
+  .advanced-search {
+    align-items: stretch;
+  }
+
+  .advanced-search input,
+  .advanced-search select {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .advanced-search .primary-button,
+  .advanced-search .secondary-button {
+    flex: 1;
+  }
+
+  .recruiter-job-card,
+  .student-application-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .recruiter-job-actions {
+    justify-content: flex-start;
+    max-width: none;
+    padding-top: 14px;
+    border-top: 1px solid #eef0f5;
+  }
+
+  .student-application-status {
+    align-self: flex-start;
+  }
+
+  .panel-heading-row {
+    align-items: flex-start;
+  }
+
+  .pagination {
+    gap: 10px;
+  }
+
+  .pagination .secondary-button {
+    padding: 9px 10px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .recruiter-job-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .recruiter-job-actions button {
+    width: 100%;
+  }
+
+  .form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .form-actions button {
+    width: 100%;
+  }
+
+  .application-filters {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .application-filters select {
+    width: 100%;
+  }
+}

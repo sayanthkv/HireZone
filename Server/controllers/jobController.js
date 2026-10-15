@@ -50,14 +50,105 @@ const createJob = async (req, res) => {
   }
 };
 
+
 const getJobs = async (req, res) => {
   try {
-    const jobs = await Job.find()
-      .populate("postedBy", "name email")
-      .sort({ createdAt: -1 });
+    const {
+      search = "",
+      location = "",
+      jobType = "",
+      sort = "latest",
+      page = "1",
+      limit = "10",
+    } = req.query;
+
+    const pageNumber = Number(page);
+    const limitNumber = Number(limit);
+
+    if (
+      !Number.isInteger(pageNumber) ||
+      pageNumber < 1 ||
+      !Number.isInteger(limitNumber) ||
+      limitNumber < 1 ||
+      limitNumber > 100
+    ) {
+      return res.status(400).json({
+        message: "Invalid page or limit",
+      });
+    }
+
+    const filter = {};
+
+    if (search.trim()) {
+      const safeSearch = search.trim().replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&"
+      );
+
+      filter.$or = [
+        { title: { $regex: safeSearch, $options: "i" } },
+        { company: { $regex: safeSearch, $options: "i" } },
+        { skills: { $regex: safeSearch, $options: "i" } },
+      ];
+    }
+
+    if (location.trim()) {
+      const safeLocation = location.trim().replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&"
+      );
+
+      filter.location = {
+        $regex: safeLocation,
+        $options: "i",
+      };
+    }
+
+    const validJobTypes = [
+      "Full-time",
+      "Part-time",
+      "Internship",
+      "Contract",
+    ];
+
+    if (jobType) {
+      if (!validJobTypes.includes(jobType)) {
+        return res.status(400).json({
+          message: "Invalid job type",
+        });
+      }
+
+      filter.jobType = jobType;
+    }
+
+    const sortOptions = {
+      latest: { createdAt: -1 },
+      oldest: { createdAt: 1 },
+      title: { title: 1 },
+    };
+
+    if (!sortOptions[sort]) {
+      return res.status(400).json({
+        message: "Invalid sort option",
+      });
+    }
+
+    const skip = (pageNumber - 1) * limitNumber;
+
+    const [jobs, totalJobs] = await Promise.all([
+      Job.find(filter)
+        .populate("postedBy", "name email")
+        .sort(sortOptions[sort])
+        .skip(skip)
+        .limit(limitNumber),
+      Job.countDocuments(filter),
+    ]);
 
     return res.status(200).json({
       count: jobs.length,
+      totalJobs,
+      page: pageNumber,
+      totalPages: Math.ceil(totalJobs / limitNumber),
       jobs,
     });
   } catch (error) {
