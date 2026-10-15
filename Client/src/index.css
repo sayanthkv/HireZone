@@ -670,3 +670,47 @@ button:disabled {
   box-shadow: none;
 }
 
+.profile-nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 15px;
+  border: 1px solid #dcd9ff;
+  border-radius: 8px;
+  background: #f1f0ff;
+  color: #5145cd;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.profile-nav-button:hover {
+  background: #5145cd;
+  color: #ffffff;
+}
+
+.profile-nav-button:focus-visible,
+.nav-links a:focus-visible,
+.logout-button:focus-visible {
+  outline: 3px solid #9b94ff;
+  outline-offset: 3px;
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .nav-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .welcome-user {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+}
