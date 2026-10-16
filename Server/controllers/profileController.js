@@ -18,6 +18,8 @@ exports.updateProfile = async (req, res) => {
       name,
       phone,
       location,
+      city,
+      degree,
       bio,
       skills,
       education,
@@ -34,6 +36,8 @@ exports.updateProfile = async (req, res) => {
     if (name !== undefined) user.name = name;
     if (phone !== undefined) user.phone = phone;
     if (location !== undefined) user.location = location;
+    if (city !== undefined) user.city = city;
+    if (degree !== undefined) user.degree = degree;
     if (bio !== undefined) user.bio = bio;
     if (skills !== undefined) user.skills = skills;
     if (education !== undefined) user.education = education;
@@ -52,6 +56,8 @@ exports.updateProfile = async (req, res) => {
         role: updatedUser.role,
         phone: updatedUser.phone,
         location: updatedUser.location,
+        city: updatedUser.city,
+        degree: updatedUser.degree,
         bio: updatedUser.bio,
         skills: updatedUser.skills,
         education: updatedUser.education,

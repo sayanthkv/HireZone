@@ -8,6 +8,8 @@ const emptyProfile = {
   role: "student",
   phone: "",
   location: "",
+  city: "",
+  degree: "",
   bio: "",
   skills: [],
   education: "",
@@ -74,25 +76,22 @@ export default function Profile() {
       setMessage("");
 
       const payload = {
-        name: profile.name.trim(),
-        phone: profile.phone,
-        location: profile.location,
-        bio: profile.bio,
-      };
+  name: profile.name.trim(),
+  phone: profile.phone,
+  location: profile.location,
+  city: profile.city || profile.location, // maps city field correctly
+  bio: profile.bio,
+};
 
-      if (profile.role === "student") {
-        payload.education = profile.education;
-        payload.resumeLink = profile.resumeLink;
-        payload.skills = skillsText
-          .split(",")
-          .map((skill) => skill.trim())
-          .filter(Boolean);
-      }
-
-      if (profile.role === "recruiter") {
-        payload.companyName = profile.companyName;
-        payload.companyDescription = profile.companyDescription;
-      }
+if (profile.role === "student") {
+  payload.education = profile.education;
+  payload.degree = profile.degree; // explicitly send degree
+  payload.resumeLink = profile.resumeLink;
+  payload.skills = skillsText
+    .split(",")
+    .map((skill) => skill.trim())
+    .filter(Boolean);
+}
 
       const response = await api.put("/profile/me", payload);
       const updatedUser = response.data.user;
