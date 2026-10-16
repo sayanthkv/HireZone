@@ -1,101 +1,149 @@
+import React, { useState, useContext } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
+import { AuthContext } from '../context/AuthContext';
+import API from '../services/api';
+import './Auth.css';
 
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+const Register = () => {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'student',
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-export default function Register() {
-  const { register, loading } = useAuth();
+  const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "student",
-  });
+  const { name, email, password, role } = formData;
 
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  const handleChange = (event) => {
-    setForm({ ...form, [event.target.name]: event.target.value });
+  const onChange = (e) => {
+    setFormData({ ...formData, [e.target.value ? e.target.name : e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setError("");
-    setSuccess("");
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
     try {
-      await register(form);
-      setSuccess("Registration successful! You can now log in.");
+      const res = await API.post('/auth/register', { name, email, password, role });
+      login(res.data.token, res.data.user);
 
-      setTimeout(() => {
-        navigate("/login");
-      }, 800);
-    } catch (error) {
-      setError(error.response?.data?.message || "Registration failed");
+      if (res.data.user.role === 'recruiter') {
+        navigate('/recruiter-dashboard');
+      } else {
+        navigate('/student-dashboard');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setError('');
+    setLoading(true);
+    try {
+      const res = await API.post('/auth/google', {
+        idToken: credentialResponse.credential,
+        role: role,
+      });
+
+      login(res.data.token, res.data.user);
+
+      if (res.data.user.role === 'recruiter') {
+        navigate('/recruiter-dashboard');
+      } else {
+        navigate('/student-dashboard');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Google Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="auth-page">
-      <form className="auth-card" onSubmit={handleSubmit}>
-        <h1>Create your account</h1>
-        <p>Join HireHub to find opportunities or recruit talent.</p>
-
+    <div className="auth-container">
+      <div className="auth-card">
+        <h2>Register for HireZone</h2>
         {error && <div className="error-message">{error}</div>}
-        {success && <div className="success-message">{success}</div>}
 
-        <label htmlFor="name">Full name</label>
-        <input
-          id="name"
-          name="name"
-          value={form.name}
-          onChange={handleChange}
-          required
-        />
+        <form onSubmit={onSubmit}>
+          <div className="form-group">
+            <label htmlFor="name">Full Name</label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={name}
+              onChange={onChange}
+              required
+              placeholder="Enter your full name"
+            />
+          </div>
 
-        <label htmlFor="email">Email address</label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          value={form.email}
-          onChange={handleChange}
-          required
-        />
+          <div className="form-group">
+            <label htmlFor="email">Email Address</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={email}
+              onChange={onChange}
+              required
+              placeholder="Enter your email"
+            />
+          </div>
 
-        <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          minLength={6}
-          value={form.password}
-          onChange={handleChange}
-          required
-        />
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              value={password}
+              onChange={onChange}
+              required
+              placeholder="Create a password"
+            />
+          </div>
 
-        <label htmlFor="role">I want to</label>
-        <select
-          id="role"
-          name="role"
-          value={form.role}
-          onChange={handleChange}
-        >
-          <option value="student">Find a job or internship</option>
-          <option value="recruiter">Recruit candidates</option>
-        </select>
+          <div className="form-group">
+            <label htmlFor="role">Register As</label>
+            <select id="role" name="role" value={role} onChange={onChange}>
+              <option value="student">Student</option>
+              <option value="recruiter">Recruiter</option>
+            </select>
+          </div>
 
-        <button className="primary-button" disabled={loading}>
-          {loading ? "Creating account..." : "Create account"}
-        </button>
+          <button type="submit" className="btn btn-primary" disabled={loading}>
+            {loading ? 'Creating Account...' : 'Register'}
+          </button>
+        </form>
+
+        <div className="auth-divider" style={{ margin: '20px 0', textAlign: 'center', position: 'relative' }}>
+          <span style={{ background: '#fff', padding: '0 10px', color: '#666', fontSize: '14px' }}>OR</span>
+        </div>
+
+        <div className="google-auth-wrapper" style={{ display: 'flex', justifyContent: 'center' }}>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError('Google Registration was cancelled or failed.')}
+          />
+        </div>
 
         <p className="auth-footer">
-          Already registered? <Link to="/login">Login</Link>
+          Already have an account? <Link to="/login">Login here</Link>
         </p>
-      </form>
+      </div>
     </div>
   );
-}
+};
+
+export default Register;

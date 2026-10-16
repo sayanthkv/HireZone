@@ -1,87 +1,34 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
+    name: { 
+      type: String, 
+      required: true 
     },
-
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
+    email: { 
+      type: String, 
+      required: true, 
+      unique: true 
     },
-
-    password: {
-      type: String,
-      required: true,
-      minlength: 6,
+    password: { 
+      type: String, 
+      required: function () {
+        // Password is only required if the user didn't use Google
+        return !this.googleId; 
+      }
     },
-
-    role: {
-      type: String,
-      enum: ["student", "recruiter", "admin"],
-      default: "student",
+    role: { 
+      type: String, 
+      enum: ['student', 'recruiter'], 
+      default: 'student' 
     },
-
-    phone: {
+    googleId: { 
       type: String,
-      trim: true,
-      default: "",
-    },
-
-    location: {
-      type: String,
-      trim: true,
-      default: "",
-    },
-
-    bio: {
-      type: String,
-      trim: true,
-      maxlength: 1000,
-      default: "",
-    },
-
-    skills: {
-      type: [String],
-      default: [],
-    },
-
-    education: {
-      type: String,
-      trim: true,
-      default: "",
-    },
-
-    resumeLink: {
-      type: String,
-      trim: true,
-      default: "",
-    },
-
-    companyName: {
-      type: String,
-      trim: true,
-      default: "",
-    },
-
-    companyDescription: {
-      type: String,
-      trim: true,
-      maxlength: 2000,
-      default: "",
+      default: null 
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-const User = mongoose.model("User", userSchema);
-
-module.exports = User;
+module.exports = mongoose.model('User', userSchema);

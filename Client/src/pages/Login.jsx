@@ -1,78 +1,125 @@
+import React, { useState, useContext } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
+import { AuthContext } from '../context/AuthContext';
+import API from '../services/api';
+import './Auth.css';
 
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+const Login = () => {
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-export default function Login() {
-  const { login, loading } = useAuth();
+  const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-  });
+  const { email, password } = formData;
 
-  const [error, setError] = useState("");
-
-  const handleChange = (event) => {
-    setForm({ ...form, [event.target.name]: event.target.value });
+  const onChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setError("");
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
     try {
-      const loggedInUser = await login(form.email, form.password);
+      const res = await API.post('/auth/login', { email, password });
+      login(res.data.token, res.data.user);
 
-      if (loggedInUser.role === "recruiter") {
-        navigate("/recruiter-dashboard");
-      } else if (loggedInUser.role === "student") {
-        navigate("/student-dashboard");
+      if (res.data.user.role === 'recruiter') {
+        navigate('/recruiter-dashboard');
       } else {
-        navigate("/");
+        navigate('/student-dashboard');
       }
-    } catch (error) {
-      setError(error.response?.data?.message || "Login failed");
+    } catch (err) {
+      setError(err.response?.data?.message || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setError('');
+    setLoading(true);
+    try {
+      const res = await API.post('/auth/google', {
+        idToken: credentialResponse.credential,
+      });
+
+      login(res.data.token, res.data.user);
+
+      if (res.data.user.role === 'recruiter') {
+        navigate('/recruiter-dashboard');
+      } else {
+        navigate('/student-dashboard');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Google Authentication failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="auth-page">
-      <form className="auth-card" onSubmit={handleSubmit}>
-        <h1>Welcome back</h1>
-        <p>Log in to continue your HireHub journey.</p>
-
+    <div className="auth-container">
+      <div className="auth-card">
+        <h2>Login to HireZone</h2>
         {error && <div className="error-message">{error}</div>}
 
-        <label htmlFor="email">Email address</label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          value={form.email}
-          onChange={handleChange}
-          required
-        />
+        <form onSubmit={onSubmit}>
+          <div className="form-group">
+            <label htmlFor="email">Email Address</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={email}
+              onChange={onChange}
+              required
+              placeholder="Enter your email"
+            />
+          </div>
 
-        <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          value={form.password}
-          onChange={handleChange}
-          required
-        />
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              value={password}
+              onChange={onChange}
+              required
+              placeholder="Enter your password"
+            />
+          </div>
 
-        <button className="primary-button" disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
-        </button>
+          <button type="submit" className="btn btn-primary" disabled={loading}>
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
+        </form>
+
+        <div className="auth-divider" style={{ margin: '20px 0', textAlign: 'center', position: 'relative' }}>
+          <span style={{ background: '#fff', padding: '0 10px', color: '#666', fontSize: '14px' }}>OR</span>
+        </div>
+
+        <div className="google-auth-wrapper" style={{ display: 'flex', justifyContent: 'center' }}>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError('Google Sign-In was cancelled or failed.')}
+          />
+        </div>
 
         <p className="auth-footer">
-          Don't have an account? <Link to="/register">Register</Link>
+          Don't have an account? <Link to="/register">Register here</Link>
         </p>
-      </form>
+      </div>
     </div>
   );
-}
+};
+
+export default Login;

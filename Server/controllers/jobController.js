@@ -1,5 +1,16 @@
+
 const mongoose = require("mongoose");
 const Job = require("../models/Job");
+
+const escapeRegex = (value) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const validJobTypes = [
+  "Full-time",
+  "Part-time",
+  "Internship",
+  "Contract",
+];
 
 const createJob = async (req, res) => {
   try {
@@ -13,21 +24,42 @@ const createJob = async (req, res) => {
       skills,
     } = req.body;
 
-    if (!title?.trim() || !company?.trim() ||
-        !location?.trim() || !description?.trim()) {
+    if (
+      typeof title !== "string" ||
+      !title.trim() ||
+      typeof company !== "string" ||
+      !company.trim() ||
+      typeof location !== "string" ||
+      !location.trim() ||
+      typeof description !== "string" ||
+      !description.trim()
+    ) {
       return res.status(400).json({
-        message: "Please provide title, company, location, and description",
+        message:
+          "Please provide title, company, location, and description",
+      });
+    }
+
+    if (jobType && !validJobTypes.includes(jobType)) {
+      return res.status(400).json({
+        message: "Invalid job type",
+      });
+    }
+
+    if (skills !== undefined && !Array.isArray(skills)) {
+      return res.status(400).json({
+        message: "Skills must be an array",
       });
     }
 
     const job = await Job.create({
-      title,
-      company,
-      location,
-      jobType,
-      description,
-      salary,
-      skills,
+      title: title.trim(),
+      company: company.trim(),
+      location: location.trim(),
+      jobType: jobType || "Full-time",
+      description: description.trim(),
+      salary: salary || "Not specified",
+      skills: skills || [],
       postedBy: req.user.id,
     });
 
@@ -36,7 +68,10 @@ const createJob = async (req, res) => {
       job,
     });
   } catch (error) {
-    if (error.name === "ValidationError" || error.name === "CastError") {
+    if (
+      error.name === "ValidationError" ||
+      error.name === "CastError"
+    ) {
       return res.status(400).json({
         message: "Invalid job data",
         error: error.message,
@@ -50,7 +85,6 @@ const createJob = async (req, res) => {
   }
 };
 
-
 const getJobs = async (req, res) => {
   try {
     const {
@@ -61,6 +95,17 @@ const getJobs = async (req, res) => {
       page = "1",
       limit = "10",
     } = req.query;
+
+    if (
+      typeof search !== "string" ||
+      typeof location !== "string" ||
+      typeof jobType !== "string" ||
+      typeof sort !== "string"
+    ) {
+      return res.status(400).json({
+        message: "Invalid query parameters",
+      });
+    }
 
     const pageNumber = Number(page);
     const limitNumber = Number(limit);
@@ -80,23 +125,32 @@ const getJobs = async (req, res) => {
     const filter = {};
 
     if (search.trim()) {
-      const safeSearch = search.trim().replace(
-        /[.*+?^${}()|[\]\\]/g,
-        "\\$&"
-      );
+      const safeSearch = escapeRegex(search.trim());
 
       filter.$or = [
-        { title: { $regex: safeSearch, $options: "i" } },
-        { company: { $regex: safeSearch, $options: "i" } },
-        { skills: { $regex: safeSearch, $options: "i" } },
+        {
+          title: {
+            $regex: safeSearch,
+            $options: "i",
+          },
+        },
+        {
+          company: {
+            $regex: safeSearch,
+            $options: "i",
+          },
+        },
+        {
+          skills: {
+            $regex: safeSearch,
+            $options: "i",
+          },
+        },
       ];
     }
 
     if (location.trim()) {
-      const safeLocation = location.trim().replace(
-        /[.*+?^${}()|[\]\\]/g,
-        "\\$&"
-      );
+      const safeLocation = escapeRegex(location.trim());
 
       filter.location = {
         $regex: safeLocation,
@@ -104,14 +158,7 @@ const getJobs = async (req, res) => {
       };
     }
 
-    const validJobTypes = [
-      "Full-time",
-      "Part-time",
-      "Internship",
-      "Contract",
-    ];
-
-    if (jobType) {
+    if (jobType && jobType !== "All") {
       if (!validJobTypes.includes(jobType)) {
         return res.status(400).json({
           message: "Invalid job type",
@@ -122,12 +169,12 @@ const getJobs = async (req, res) => {
     }
 
     const sortOptions = {
-      latest: { createdAt: -1 },
-      oldest: { createdAt: 1 },
-      title: { title: 1 },
+      latest: { createdAt: -1, _id: -1 },
+      oldest: { createdAt: 1, _id: 1 },
+      title: { title: 1, _id: 1 },
     };
 
-    if (!sortOptions[sort]) {
+    if (!Object.prototype.hasOwnProperty.call(sortOptions, sort)) {
       return res.status(400).json({
         message: "Invalid sort option",
       });
@@ -140,7 +187,9 @@ const getJobs = async (req, res) => {
         .populate("postedBy", "name email")
         .sort(sortOptions[sort])
         .skip(skip)
-        .limit(limitNumber),
+        .limit(limitNumber)
+        .lean(),
+
       Job.countDocuments(filter),
     ]);
 
@@ -161,15 +210,23 @@ const getJobs = async (req, res) => {
 
 const getJobById = async (req, res) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({ message: "Invalid job ID" });
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        message: "Invalid job ID",
+      });
     }
 
-    const job = await Job.findById(req.params.id)
-      .populate("postedBy", "name email");
+    const job = await Job.findById(id).populate(
+      "postedBy",
+      "name email"
+    );
 
     if (!job) {
-      return res.status(404).json({ message: "Job not found" });
+      return res.status(404).json({
+        message: "Job not found",
+      });
     }
 
     return res.status(200).json({ job });
@@ -181,22 +238,25 @@ const getJobById = async (req, res) => {
   }
 };
 
-// Recruiter edits a job they own
 const updateJob = async (req, res) => {
   try {
     const { id } = req.params;
 
     if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({ message: "Invalid job ID" });
+      return res.status(400).json({
+        message: "Invalid job ID",
+      });
     }
 
     const job = await Job.findById(id);
 
     if (!job) {
-      return res.status(404).json({ message: "Job not found" });
+      return res.status(404).json({
+        message: "Job not found",
+      });
     }
 
-    if (job.postedBy.toString() !== req.user.id) {
+    if (job.postedBy.toString() !== String(req.user.id)) {
       return res.status(403).json({
         message: "You can only edit your own jobs",
       });
@@ -212,7 +272,6 @@ const updateJob = async (req, res) => {
       "skills",
     ];
 
-    // Only allow approved fields to be updated.
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
         job.set(field, req.body[field]);
@@ -220,28 +279,37 @@ const updateJob = async (req, res) => {
     }
 
     if (
-      !job.title?.trim() ||
-      !job.company?.trim() ||
-      !job.location?.trim() ||
-      !job.description?.trim()
+      typeof job.title !== "string" ||
+      !job.title.trim() ||
+      typeof job.company !== "string" ||
+      !job.company.trim() ||
+      typeof job.location !== "string" ||
+      !job.location.trim() ||
+      typeof job.description !== "string" ||
+      !job.description.trim()
     ) {
       return res.status(400).json({
-        message: "Title, company, location, and description are required",
+        message:
+          "Title, company, location, and description are required",
       });
     }
-
-    const validJobTypes = [
-      "Full-time",
-      "Part-time",
-      "Internship",
-      "Contract",
-    ];
 
     if (!validJobTypes.includes(job.jobType)) {
       return res.status(400).json({
         message: "Invalid job type",
       });
     }
+
+    if (!Array.isArray(job.skills)) {
+      return res.status(400).json({
+        message: "Skills must be an array",
+      });
+    }
+
+    job.title = job.title.trim();
+    job.company = job.company.trim();
+    job.location = job.location.trim();
+    job.description = job.description.trim();
 
     await job.save();
 
@@ -250,7 +318,10 @@ const updateJob = async (req, res) => {
       job,
     });
   } catch (error) {
-    if (error.name === "ValidationError" || error.name === "CastError") {
+    if (
+      error.name === "ValidationError" ||
+      error.name === "CastError"
+    ) {
       return res.status(400).json({
         message: "Invalid job data",
         error: error.message,
@@ -264,22 +335,25 @@ const updateJob = async (req, res) => {
   }
 };
 
-// Recruiter deletes a job they own
 const deleteJob = async (req, res) => {
   try {
     const { id } = req.params;
 
     if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({ message: "Invalid job ID" });
+      return res.status(400).json({
+        message: "Invalid job ID",
+      });
     }
 
     const job = await Job.findById(id);
 
     if (!job) {
-      return res.status(404).json({ message: "Job not found" });
+      return res.status(404).json({
+        message: "Job not found",
+      });
     }
 
-    if (job.postedBy.toString() !== req.user.id) {
+    if (job.postedBy.toString() !== String(req.user.id)) {
       return res.status(403).json({
         message: "You can only delete your own jobs",
       });

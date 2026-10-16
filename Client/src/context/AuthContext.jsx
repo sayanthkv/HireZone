@@ -1,73 +1,47 @@
+import React, { createContext, useState, useEffect, useContext } from 'react';
 
-import { createContext, useContext, useState } from "react";
-import api from "../services/api";
+// Export AuthContext
+export const AuthContext = createContext();
 
-const AuthContext = createContext(null);
+// Export Custom Hook useAuth
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("hirehub_user")) || null;
-    } catch {
-      return null;
+// Export AuthProvider
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+
+    if (storedUser && token) {
+      setUser(JSON.parse(storedUser));
     }
-  });
+    setLoading(false);
+  }, []);
 
-  const [loading, setLoading] = useState(false);
-
-  const login = async (email, password) => {
-    setLoading(true);
-
-    try {
-      const response = await api.post("/auth/login", {
-        email,
-        password,
-      });
-
-      const { token, user: loggedInUser } = response.data;
-
-      localStorage.setItem("hirehub_token", token);
-      localStorage.setItem("hirehub_user", JSON.stringify(loggedInUser));
-
-      setUser(loggedInUser);
-      return loggedInUser;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const register = async ({ name, email, password, role }) => {
-    setLoading(true);
-
-    try {
-      const response = await api.post("/auth/register", {
-        name,
-        email,
-        password,
-        role,
-      });
-
-      return response.data;
-    } finally {
-      setLoading(false);
-    }
+  const login = (token, userData) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
   };
 
   const logout = () => {
-    localStorage.removeItem("hirehub_token");
-    localStorage.removeItem("hirehub_user");
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider
-      value={{ user, login, register, logout, loading }}
-    >
+    <AuthContext.Provider value={{ user, setUser, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
-}
+};
