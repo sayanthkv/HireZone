@@ -1,12 +1,15 @@
+import React, { useContext } from 'react';
+import { Navigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 
-import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+const ProtectedRoute = ({ children, allowedRoles }) => {
+  const { user, loading } = useContext(AuthContext);
 
-export default function ProtectedRoute({ allowedRoles }) {
-  const { user } = useAuth();
-  const token = localStorage.getItem("hirehub_token");
+  if (loading) {
+    return <div style={{ textAlign: 'center', padding: '50px' }}>Loading HireZone...</div>;
+  }
 
-  if (!token || !user) {
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 
@@ -14,5 +17,7 @@ export default function ProtectedRoute({ allowedRoles }) {
     return <Navigate to="/" replace />;
   }
 
-  return <Outlet />;
-}
+  return children;
+};
+
+export default ProtectedRoute;

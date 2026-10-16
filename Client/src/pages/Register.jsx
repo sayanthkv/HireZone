@@ -21,7 +21,7 @@ const Register = () => {
   const { name, email, password, role } = formData;
 
   const onChange = (e) => {
-    setFormData({ ...formData, [e.target.value ? e.target.name : e.target.name]: e.target.value });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const onSubmit = async (e) => {
@@ -127,11 +127,11 @@ const Register = () => {
           </button>
         </form>
 
-        <div className="auth-divider" style={{ margin: '20px 0', textAlign: 'center', position: 'relative' }}>
-          <span style={{ background: '#fff', padding: '0 10px', color: '#666', fontSize: '14px' }}>OR</span>
+        <div className="auth-divider">
+          <span>OR</span>
         </div>
 
-        <div className="google-auth-wrapper" style={{ display: 'flex', justifyContent: 'center' }}>
+        <div className="google-auth-wrapper">
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
             onError={() => setError('Google Registration was cancelled or failed.')}

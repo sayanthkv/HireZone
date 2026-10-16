@@ -14,7 +14,6 @@ const userSchema = new mongoose.Schema(
     password: { 
       type: String, 
       required: function () {
-        // Password is only required if the user didn't use Google
         return !this.googleId; 
       }
     },
@@ -27,6 +26,22 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null 
     },
+    phone: {
+      type: String,
+      default: ''
+    },
+    city: {
+      type: String,
+      default: ''
+    },
+    bio: {
+      type: String,
+      default: ''
+    },
+    skills: {
+      type: [String],
+      default: []
+    }
   },
   { timestamps: true }
 );

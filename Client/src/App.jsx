@@ -1,66 +1,78 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import ProtectedRoute from './components/ProtectedRoute';
 
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
-import Navbar from "./components/Navbar";
-import ProtectedRoute from "./components/ProtectedRoute";
+import Home from './pages/Home';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Profile from './pages/Profile';
+import StudentDashboard from './pages/StudentDashboard';
+import RecruiterDashboard from './pages/RecruiterDashboard';
+import RecruiterApplicants from './pages/RecruiterApplicants';
+import ApplyJob from './pages/ApplyJob';
 
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import StudentDashboard from "./pages/StudentDashboard";
-import RecruiterDashboard from "./pages/RecruiterDashboard";
-import ApplyJob from "./pages/ApplyJob";
-import RecruiterApplicants from "./pages/RecruiterApplicants";
-import Profile from "./pages/Profile";
-
-export default function App() {
+function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Navbar />
+    <Router>
+      <Navbar />
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-
-          <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
-            <Route
-              path="/student-dashboard"
-              element={<StudentDashboard />}
-            />
-            <Route path="/apply/:jobId" element={<ApplyJob />} />
-          </Route>
-
-          <Route element={<ProtectedRoute allowedRoles={["recruiter"]} />}>
-            <Route
-              path="/recruiter-dashboard"
-              element={<RecruiterDashboard />}
-            />
-                      <Route
-            path="/recruiter/jobs/:jobId/applicants"
-            element={<RecruiterApplicants />}
-          />
-          </Route>
-
-          <Route
+        {/* Protected Student Routes */}
+        <Route
+          path="/student-dashboard"
           element={
-            <ProtectedRoute allowedRoles={["student", "recruiter"]} />
+            <ProtectedRoute allowedRoles={['student']}>
+              <StudentDashboard />
+            </ProtectedRoute>
           }
-        >
-          <Route path="/profile" element={<Profile />} />
-        </Route>
+        />
+        <Route
+          path="/apply/:jobId"
+          element={
+            <ProtectedRoute allowedRoles={['student']}>
+              <ApplyJob />
+            </ProtectedRoute>
+          }
+        />
 
-          <Route path="*" element={<main className="not-found"><h1>404</h1><p>Page not found.</p></main>} />
-        </Routes>
+        {/* Protected Recruiter Routes */}
+        <Route
+          path="/recruiter-dashboard"
+          element={
+            <ProtectedRoute allowedRoles={['recruiter']}>
+              <RecruiterDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recruiter/job/:jobId/applicants"
+          element={
+            <ProtectedRoute allowedRoles={['recruiter']}>
+              <RecruiterApplicants />
+            </ProtectedRoute>
+          }
+        />
 
-                
+        {/* Common Protected Routes */}
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute allowedRoles={['student', 'recruiter']}>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
 
-         
-        <footer className="site-footer">
-          © {new Date().getFullYear()} HireHub · Connecting talent with opportunity.
-        </footer>
-      </AuthProvider>
-    </BrowserRouter>
+        {/* Fallback Route */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
   );
 }
+
+export default App;
