@@ -1,7 +1,12 @@
-import { useEffect, useState } from "react";
+
+
+import { useCallback, useEffect, useState } from "react";
+
+
 import { Link } from "react-router-dom";
 import api from "../services/api";
 import "./HireZoneFeatures.css";
+import { useAuth } from "../context/AuthContext";
 
 const initialForm = {
   title: "",
@@ -34,35 +39,98 @@ export default function RecruiterDashboard() {
   const [updatingApplicationId, setUpdatingApplicationId] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+const { user, loading: authLoading } = useAuth();
 
-  const fetchJobs = async () => {
-    try {
-      setError("");
+ 
+const fetchJobs = useCallback(async () => {
+  setLoading(true);
 
-      const response = await api.get("/jobs?limit=100");
-      const allJobs = response.data.jobs || [];
-      const user = JSON.parse(
-        localStorage.getItem("hirehub_user") || "null"
+  try {
+    setError("");
+
+    console.log("Fetching jobs...");
+    console.log("API URL:", api.defaults.baseURL);
+    console.log("Logged-in user:", user);
+
+    const response = await api.get("/jobs?limit=100");
+
+    console.log("Jobs API response:", response.data);
+
+    const allJobs = Array.isArray(response.data.jobs)
+      ? response.data.jobs
+      : [];
+
+    const userId =
+      user?._id ||
+      user?.id ||
+      user?.user?._id ||
+      user?.user?.id;
+
+    console.log("Logged-in user ID:", userId);
+
+    console.log(
+      "Job owner IDs:",
+      allJobs.map((job) => ({
+        title: job.title,
+        ownerId:
+          typeof job.postedBy === "object"
+            ? job.postedBy?._id
+            : job.postedBy,
+      }))
+    );
+
+    if (!userId) {
+      setJobs([]);
+      setError(
+        "Unable to identify the logged-in recruiter. Please log out and log in again."
       );
-
-      const ownJobs = allJobs.filter((job) => {
-        const owner = job.postedBy?._id || job.postedBy;
-        const userId = user?._id || user?.id;
-
-        return owner && userId && String(owner) === String(userId);
-      });
-
-      setJobs(ownJobs);
-    } catch (err) {
-      setError(err.response?.data?.message || "Could not load jobs");
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
 
-  useEffect(() => {
+    const ownJobs = allJobs.filter((job) => {
+      const ownerId =
+        typeof job.postedBy === "object"
+          ? job.postedBy?._id
+          : job.postedBy;
+
+      return (
+        ownerId &&
+        String(ownerId) === String(userId)
+      );
+    });
+
+    console.log("Total jobs received:", allJobs.length);
+    console.log("Recruiter's jobs:", ownJobs.length);
+
+    setJobs(ownJobs);
+  } catch (error) {
+    console.error("Failed to fetch jobs:", error);
+
+    setJobs([]);
+
+    if (error.code === "ECONNABORTED") {
+      setError(
+        "The server took too long to respond. Please try again."
+      );
+    } else {
+      setError(
+        error.response?.data?.message ||
+        error.message ||
+        "Could not load jobs."
+      );
+    }
+  } finally {
+    setLoading(false);
+    console.log("Finished fetching jobs.");
+  }
+}, [user, setError, setJobs, setLoading]);
+
+useEffect(() => {
+  if (!authLoading) {
     fetchJobs();
-  }, []);
+  }
+}, [authLoading, fetchJobs]);
+
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -219,6 +287,9 @@ export default function RecruiterDashboard() {
   const selectedJobTitle =
     jobs.find((job) => job._id === selectedJob)?.title || "Selected job";
 
+    useEffect(() => {
+  fetchJobs();
+}, []);
   return (
     <main className="dashboard-page">
       <section className="dashboard-heading">

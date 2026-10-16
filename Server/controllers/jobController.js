@@ -40,13 +40,19 @@ const createJob = async (req, res) => {
       });
     }
 
-    if (jobType && !validJobTypes.includes(jobType)) {
+    if (
+      jobType &&
+      !validJobTypes.includes(jobType)
+    ) {
       return res.status(400).json({
         message: "Invalid job type",
       });
     }
 
-    if (skills !== undefined && !Array.isArray(skills)) {
+    if (
+      skills !== undefined &&
+      !Array.isArray(skills)
+    ) {
       return res.status(400).json({
         message: "Skills must be an array",
       });
@@ -77,6 +83,8 @@ const createJob = async (req, res) => {
         error: error.message,
       });
     }
+
+    console.error("Create job error:", error);
 
     return res.status(500).json({
       message: "Failed to create job",
@@ -174,7 +182,12 @@ const getJobs = async (req, res) => {
       title: { title: 1, _id: 1 },
     };
 
-    if (!Object.prototype.hasOwnProperty.call(sortOptions, sort)) {
+    if (
+      !Object.prototype.hasOwnProperty.call(
+        sortOptions,
+        sort
+      )
+    ) {
       return res.status(400).json({
         message: "Invalid sort option",
       });
@@ -197,10 +210,14 @@ const getJobs = async (req, res) => {
       count: jobs.length,
       totalJobs,
       page: pageNumber,
-      totalPages: Math.ceil(totalJobs / limitNumber),
+      totalPages: Math.ceil(
+        totalJobs / limitNumber
+      ),
       jobs,
     });
   } catch (error) {
+    console.error("Get jobs error:", error);
+
     return res.status(500).json({
       message: "Failed to fetch jobs",
       error: error.message,
@@ -231,6 +248,8 @@ const getJobById = async (req, res) => {
 
     return res.status(200).json({ job });
   } catch (error) {
+    console.error("Get job by ID error:", error);
+
     return res.status(500).json({
       message: "Failed to fetch job",
       error: error.message,
@@ -256,7 +275,10 @@ const updateJob = async (req, res) => {
       });
     }
 
-    if (job.postedBy.toString() !== String(req.user.id)) {
+    if (
+      !job.postedBy ||
+      job.postedBy.toString() !== String(req.user.id)
+    ) {
       return res.status(403).json({
         message: "You can only edit your own jobs",
       });
@@ -328,6 +350,8 @@ const updateJob = async (req, res) => {
       });
     }
 
+    console.error("Update job error:", error);
+
     return res.status(500).json({
       message: "Failed to update job",
       error: error.message,
@@ -353,7 +377,10 @@ const deleteJob = async (req, res) => {
       });
     }
 
-    if (job.postedBy.toString() !== String(req.user.id)) {
+    if (
+      !job.postedBy ||
+      job.postedBy.toString() !== String(req.user.id)
+    ) {
       return res.status(403).json({
         message: "You can only delete your own jobs",
       });
@@ -365,6 +392,8 @@ const deleteJob = async (req, res) => {
       message: "Job deleted successfully",
     });
   } catch (error) {
+    console.error("Delete job error:", error);
+
     return res.status(500).json({
       message: "Failed to delete job",
       error: error.message,
