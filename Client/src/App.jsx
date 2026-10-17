@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-
-// 1. Import the centralized socket instance used across ChatModal
 import { socket } from "./utils/socket";
 
 import Navbar from "./components/Navbar";
@@ -20,6 +18,7 @@ import ApplyJob from "./pages/ApplyJob";
 function App() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+  const [unreadSenderIds, setUnreadSenderIds] = useState([]); // Track senders with unread messages
 
   useEffect(() => {
     const rawUser = localStorage.getItem("user");
@@ -30,14 +29,17 @@ function App() {
       const userId = (user._id || user.id)?.toString();
 
       if (userId) {
-        // Ensure connection & join personal user room
         if (!socket.connected) socket.connect();
         socket.emit("join_user_room", userId);
 
         const handleReceiveMessage = (newMessage) => {
-          // Trigger red dot ONLY if message drawer/modal is closed
+          const senderId = typeof newMessage.sender === "object" ? newMessage.sender?._id : newMessage.sender;
+
           if (!isDrawerOpen) {
             setHasUnreadMessages(true);
+            if (senderId) {
+              setUnreadSenderIds((prev) => [...new Set([...prev, String(senderId)])]);
+            }
           }
         };
 
@@ -54,28 +56,30 @@ function App() {
 
   const handleOpenDrawer = () => {
     setIsDrawerOpen(true);
-    setHasUnreadMessages(false); // Clear red dot when user opens messages
+    setHasUnreadMessages(false);
   };
 
   const handleCloseDrawer = () => {
     setIsDrawerOpen(false);
   };
 
+  // Helper to clear a specific sender's unread status when opening their chat
+  const handleClearSenderUnread = (senderId) => {
+    setUnreadSenderIds((prev) => prev.filter((id) => id !== String(senderId)));
+  };
+
   return (
     <Router>
-      {/* Navbar with Messages Overlay Trigger and Notification Dot */}
       <Navbar
         onOpenMessages={handleOpenDrawer}
         hasUnreadMessages={hasUnreadMessages}
       />
 
       <Routes>
-        {/* Public Routes */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Protected Student Routes */}
         <Route
           path="/student-dashboard"
           element={
@@ -93,7 +97,6 @@ function App() {
           }
         />
 
-        {/* Protected Recruiter Routes */}
         <Route
           path="/recruiter-dashboard"
           element={
@@ -111,7 +114,6 @@ function App() {
           }
         />
 
-        {/* Common Protected Routes */}
         <Route
           path="/profile"
           element={
@@ -121,19 +123,15 @@ function App() {
           }
         />
 
-        {/* Fallback Route */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      {/* Slide-over Right Message Drawer */}
-      <MessageDrawer isOpen={isDrawerOpen} onClose={handleCloseDrawer}>
-        <div style={{ padding: "10px", textAlign: "center", color: "#6b7280" }}>
-          <p style={{ fontSize: "14px", fontWeight: "500" }}>Active Conversations</p>
-          <p style={{ fontSize: "12px", marginTop: "8px" }}>
-            Select an applicant or job conversation from your dashboard to start chatting.
-          </p>
-        </div>
-      </MessageDrawer>
+      <MessageDrawer
+        isOpen={isDrawerOpen}
+        onClose={handleCloseDrawer}
+        unreadSenderIds={unreadSenderIds}
+        onSelectConversation={handleClearSenderUnread}
+      />
     </Router>
   );
 }

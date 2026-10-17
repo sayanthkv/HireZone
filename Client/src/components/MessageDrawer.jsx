@@ -2,7 +2,12 @@ import React, { useEffect, useState } from "react";
 import api from "../services/api";
 import ChatModal from "./ChatModal";
 
-export default function MessageDrawer({ isOpen, onClose }) {
+export default function MessageDrawer({
+  isOpen,
+  onClose,
+  unreadSenderIds = [], // Array of sender IDs with unread messages passed from App.jsx
+  onSelectConversation, // Function to clear unread status for a specific sender
+}) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -273,6 +278,7 @@ export default function MessageDrawer({ isOpen, onClose }) {
                 typeof partner === "object" ? partner?._id || partner?.id : partner;
 
               const isHired = app.status === "Hired";
+              const isUnread = unreadSenderIds.includes(String(partnerId));
 
               return (
                 <div
@@ -280,22 +286,25 @@ export default function MessageDrawer({ isOpen, onClose }) {
                   className="drawer-card"
                   style={{
                     padding: "14px 16px",
-                    border: "1px solid #e2e8f0",
+                    border: isUnread ? "1px solid #ef4444" : "1px solid #e2e8f0",
                     borderRadius: "10px",
-                    backgroundColor: "#ffffff",
+                    backgroundColor: isUnread ? "#fef2f2" : "#ffffff",
                     cursor: "pointer",
                     transition: "all 0.2s ease",
                     display: "flex",
                     alignItems: "center",
                     gap: "14px",
                   }}
-                  onClick={() =>
+                  onClick={() => {
+                    if (onSelectConversation) {
+                      onSelectConversation(partnerId);
+                    }
                     setActiveChat({
                       applicationId: app._id,
                       receiverId: partnerId,
                       name: partnerName,
-                    })
-                  }
+                    });
+                  }}
                 >
                   {/* User Initial Avatar Badge */}
                   <div
@@ -324,6 +333,7 @@ export default function MessageDrawer({ isOpen, onClose }) {
                         justifyContent: "space-between",
                         alignItems: "center",
                         marginBottom: "2px",
+                        gap: "6px",
                       }}
                     >
                       <strong
@@ -338,20 +348,41 @@ export default function MessageDrawer({ isOpen, onClose }) {
                         {partnerName}
                       </strong>
 
-                      <span
-                        style={{
-                          fontSize: "10px",
-                          backgroundColor: isHired ? "#dcfce7" : "#e0f2fe",
-                          color: isHired ? "#15803d" : "#0369a1",
-                          padding: "2px 8px",
-                          borderRadius: "12px",
-                          fontWeight: "700",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.02em",
-                        }}
-                      >
-                        {app.status}
-                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        {/* Red NEW Badge if partner sent unread messages */}
+                        {isUnread && (
+                          <span
+                            style={{
+                              backgroundColor: "#ef4444",
+                              color: "#ffffff",
+                              fontSize: "10px",
+                              fontWeight: "700",
+                              padding: "2px 6px",
+                              borderRadius: "10px",
+                              letterSpacing: "0.02em",
+                              flexShrink: 0,
+                            }}
+                          >
+                            NEW
+                          </span>
+                        )}
+
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            backgroundColor: isHired ? "#dcfce7" : "#e0f2fe",
+                            color: isHired ? "#15803d" : "#0369a1",
+                            padding: "2px 8px",
+                            borderRadius: "12px",
+                            fontWeight: "700",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.02em",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {app.status}
+                        </span>
+                      </div>
                     </div>
 
                     <p

@@ -39,16 +39,21 @@ export default function Navbar({ onOpenMessages, hasUnreadMessages = false }) {
         </Link>
 
         {/* Mobile Hamburger Toggle */}
-        <button
-          type="button"
-          className="hz-hamburger"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          aria-label="Toggle navigation menu"
-        >
-          <span className={`hz-bar ${isMobileMenuOpen ? "open" : ""}`} />
-          <span className={`hz-bar ${isMobileMenuOpen ? "open" : ""}`} />
-          <span className={`hz-bar ${isMobileMenuOpen ? "open" : ""}`} />
-        </button>
+<button
+  type="button"
+  className="hz-hamburger"
+  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+  aria-label="Toggle navigation menu"
+>
+  <span className={`hz-bar ${isMobileMenuOpen ? "open" : ""}`} />
+  <span className={`hz-bar ${isMobileMenuOpen ? "open" : ""}`} />
+  <span className={`hz-bar ${isMobileMenuOpen ? "open" : ""}`} />
+  
+  {/* Red Ping Dot on Mobile Hamburger Icon when menu is collapsed */}
+  {hasUnreadMessages && !isMobileMenuOpen && (
+    <span className="hz-unread-ping hz-hamburger-ping" />
+  )}
+</button>
 
         {/* Collapsible Container for Mobile */}
         <div className={`hz-nav-menu ${isMobileMenuOpen ? "is-open" : ""}`}>
