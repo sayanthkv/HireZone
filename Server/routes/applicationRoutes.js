@@ -10,7 +10,8 @@ const { protect } = require("../middleware/authMiddleware");
 const authorizeRoles = require("../middleware/authorizeRoles");
 
 // Student routes
-router.post("/apply/:jobId", protect, authorizeRoles("student"), applyForJob);
+// UPDATED: Changed from "/apply/:jobId" to "/:jobId/apply"
+router.post("/:jobId/apply", protect, authorizeRoles("student"), applyForJob);
 router.get("/me", protect, authorizeRoles("student"), getMyApplications);
 
 // Recruiter routes
