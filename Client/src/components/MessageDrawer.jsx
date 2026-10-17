@@ -23,7 +23,6 @@ export default function MessageDrawer({ isOpen, onClose }) {
       setError("");
 
       if (currentUser.role === "student") {
-        // Fetch student's applications eligible for chat
         const response = await api.get("/applications/me");
         const list = Array.isArray(response.data)
           ? response.data
@@ -34,16 +33,15 @@ export default function MessageDrawer({ isOpen, onClose }) {
         );
         setConversations(eligible);
       } else if (currentUser.role === "recruiter") {
-        // 1. Fetch recruiter's posted jobs
         const jobsRes = await api.get("/jobs?limit=100");
         const allJobs = Array.isArray(jobsRes.data.jobs) ? jobsRes.data.jobs : [];
 
         const ownJobs = allJobs.filter((job) => {
-          const ownerId = typeof job.postedBy === "object" ? job.postedBy?._id : job.postedBy;
+          const ownerId =
+            typeof job.postedBy === "object" ? job.postedBy?._id : job.postedBy;
           return ownerId && String(ownerId) === String(currentUserId);
         });
 
-        // 2. Fetch applicants across own jobs
         const applicantPromises = ownJobs.map((job) =>
           api.get(`/applications/job/${job._id}/applicants`).catch(() => null)
         );
@@ -64,7 +62,6 @@ export default function MessageDrawer({ isOpen, onClose }) {
           }
         });
 
-        // 3. Filter ONLY applications that already have active message history
         const activeConversationPromises = eligibleApps.map(async (app) => {
           try {
             const msgRes = await api.get(`/chat/${app._id}`);
@@ -75,7 +72,9 @@ export default function MessageDrawer({ isOpen, onClose }) {
           }
         });
 
-        const activeApps = (await Promise.all(activeConversationPromises)).filter(Boolean);
+        const activeApps = (await Promise.all(activeConversationPromises)).filter(
+          Boolean
+        );
         setConversations(activeApps);
       }
     } catch (err) {
@@ -84,6 +83,16 @@ export default function MessageDrawer({ isOpen, onClose }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getInitials = (name) => {
+    if (!name) return "U";
+    return name
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   if (!isOpen) return null;
@@ -96,65 +105,111 @@ export default function MessageDrawer({ isOpen, onClose }) {
         left: 0,
         width: "100vw",
         height: "100vh",
-        backgroundColor: "rgba(0, 0, 0, 0.4)",
+        backgroundColor: "rgba(15, 23, 42, 0.45)",
+        backdropFilter: "blur(3px)",
         zIndex: 1000,
         display: "flex",
         justifyContent: "flex-end",
+        transition: "opacity 0.2s ease-in-out",
       }}
       onClick={onClose}
     >
+      {/* Dynamic CSS Keyframes for Drawer Animation */}
+      <style>
+        {`
+          @keyframes slideInRight {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+          }
+          .drawer-card:hover {
+            border-color: #2563eb !important;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+          }
+        `}
+      </style>
+
       <div
         style={{
           width: "100%",
-          maxWidth: "420px",
+          maxWidth: "400px",
           height: "100%",
           backgroundColor: "#ffffff",
-          boxShadow: "-4px 0 20px rgba(0, 0, 0, 0.15)",
+          boxShadow: "-8px 0 30px rgba(0, 0, 0, 0.12)",
           display: "flex",
           flexDirection: "column",
+          animation: "slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards",
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Header Bar */}
         <div
           style={{
-            padding: "16px 20px",
-            borderBottom: "1px solid #e5e7eb",
+            padding: "20px 24px",
+            borderBottom: "1px solid #f1f5f9",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            backgroundColor: "#f9fafb",
+            backgroundColor: "#ffffff",
           }}
         >
-          <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "600", color: "#111827" }}>
-            💬 Messages
-          </h3>
+          <div>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: "18px",
+                fontWeight: "700",
+                color: "#0f172a",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              Messages
+            </h3>
+            <span style={{ fontSize: "12px", color: "#64748b" }}>
+              Direct Candidate & Recruiter Chat
+            </span>
+          </div>
+
           <button
             type="button"
             onClick={onClose}
             style={{
               border: "none",
-              background: "none",
-              fontSize: "20px",
+              backgroundColor: "#f8fafc",
+              width: "32px",
+              height: "32px",
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "16px",
               cursor: "pointer",
-              color: "#6b7280",
+              color: "#64748b",
+              transition: "all 0.2s",
             }}
           >
             ✕
           </button>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+        {/* Content Section */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 16px" }}>
           {loading && (
-            <p style={{ color: "#6b7280", textAlign: "center" }}>Loading conversations...</p>
+            <div style={{ textAlign: "center", padding: "40px 0" }}>
+              <div style={{ color: "#64748b", fontSize: "14px", fontWeight: "500" }}>
+                Loading conversations...
+              </div>
+            </div>
           )}
 
           {error && (
             <div
               style={{
                 color: "#991b1b",
-                backgroundColor: "#fee2e2",
-                padding: "10px",
-                borderRadius: "6px",
+                backgroundColor: "#fef2f2",
+                border: "1px solid #fecaca",
+                padding: "12px 16px",
+                borderRadius: "8px",
                 fontSize: "13px",
               }}
             >
@@ -163,35 +218,76 @@ export default function MessageDrawer({ isOpen, onClose }) {
           )}
 
           {!loading && conversations.length === 0 && !error && (
-            <div style={{ textAlign: "center", padding: "30px 10px", color: "#6b7280" }}>
-              <p style={{ fontWeight: "600", fontSize: "15px" }}>No active chats</p>
-              <p style={{ fontSize: "13px", marginTop: "6px" }}>
+            <div
+              style={{
+                textAlign: "center",
+                padding: "60px 20px",
+                backgroundColor: "#f8fafc",
+                borderRadius: "12px",
+                border: "1px dashed #e2e8f0",
+              }}
+            >
+              <div
+                style={{
+                  width: "48px",
+                  height: "48px",
+                  backgroundColor: "#eff6ff",
+                  color: "#2563eb",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto 12px auto",
+                  fontSize: "20px",
+                }}
+              >
+                💬
+              </div>
+              <p
+                style={{
+                  fontWeight: "600",
+                  fontSize: "15px",
+                  color: "#0f172a",
+                  margin: "0 0 6px 0",
+                }}
+              >
+                No Active Messages
+              </p>
+              <p style={{ fontSize: "13px", color: "#64748b", margin: 0, lineHeight: "1.5" }}>
                 {currentUser.role === "recruiter"
-                  ? "Initiate a chat directly from your applicant list on the dashboard to start a conversation."
+                  ? "Message candidates directly from your applicant list to start a chat."
                   : "Conversations will appear here once a recruiter shortlists your application."}
               </p>
             </div>
           )}
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {/* Conversation Cards List */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {conversations.map((app) => {
               const isStudent = currentUser.role === "student";
               const partner = isStudent ? app.job?.postedBy : app.student;
               const partnerName = partner?.name || (isStudent ? "Recruiter" : "Student");
               const jobTitle = app.job?.title || "Job Application";
+              const companyName = app.job?.company || "";
               const partnerId =
                 typeof partner === "object" ? partner?._id || partner?.id : partner;
+
+              const isHired = app.status === "Hired";
 
               return (
                 <div
                   key={app._id}
+                  className="drawer-card"
                   style={{
-                    padding: "12px 16px",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "8px",
+                    padding: "14px 16px",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "10px",
                     backgroundColor: "#ffffff",
                     cursor: "pointer",
-                    transition: "border-color 0.2s",
+                    transition: "all 0.2s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "14px",
                   }}
                   onClick={() =>
                     setActiveChat({
@@ -201,24 +297,76 @@ export default function MessageDrawer({ isOpen, onClose }) {
                     })
                   }
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <strong style={{ fontSize: "15px", color: "#1f2937" }}>{partnerName}</strong>
-                    <span
+                  {/* User Initial Avatar Badge */}
+                  <div
+                    style={{
+                      width: "42px",
+                      height: "42px",
+                      borderRadius: "10px",
+                      backgroundColor: isStudent ? "#eff6ff" : "#f0fdf4",
+                      color: isStudent ? "#2563eb" : "#16a34a",
+                      fontWeight: "700",
+                      fontSize: "14px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {getInitials(partnerName)}
+                  </div>
+
+                  {/* Details Container */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
                       style={{
-                        fontSize: "11px",
-                        backgroundColor: "#dcfce7",
-                        color: "#166534",
-                        padding: "2px 8px",
-                        borderRadius: "12px",
-                        fontWeight: "600",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: "2px",
                       }}
                     >
-                      {app.status}
-                    </span>
+                      <strong
+                        style={{
+                          fontSize: "14px",
+                          color: "#0f172a",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {partnerName}
+                      </strong>
+
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          backgroundColor: isHired ? "#dcfce7" : "#e0f2fe",
+                          color: isHired ? "#15803d" : "#0369a1",
+                          padding: "2px 8px",
+                          borderRadius: "12px",
+                          fontWeight: "700",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.02em",
+                        }}
+                      >
+                        {app.status}
+                      </span>
+                    </div>
+
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: "12px",
+                        color: "#64748b",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {jobTitle} {companyName ? `• ${companyName}` : ""}
+                    </p>
                   </div>
-                  <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#6b7280" }}>
-                    Role: {jobTitle}
-                  </p>
                 </div>
               );
             })}
@@ -226,6 +374,7 @@ export default function MessageDrawer({ isOpen, onClose }) {
         </div>
       </div>
 
+      {/* Render Chat Modal Overlay */}
       {activeChat && (
         <ChatModal
           applicationId={activeChat.applicationId}
