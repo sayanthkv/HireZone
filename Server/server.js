@@ -3,6 +3,9 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
 require("dotenv").config();
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const mongoSanitize = require("express-mongo-sanitize");
 
 const connectDB = require("./config/db");
 
@@ -17,27 +20,70 @@ const Application = require("./models/Application");
 const app = express();
 const server = http.createServer(app);
 
-// Initialize Socket.io
-const io = new Server(server, {
-  cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
-    methods: ["GET", "POST"],
-    credentials: true,
-  },
-  transports: ["websocket", "polling"],
-});
+// Allowed origins list (handles Render env + Vercel deployment + localhost)
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  "https://hire-zone-eight.vercel.app",
+  "http://localhost:5173",
+].filter(Boolean); // removes undefined entries if CLIENT_URL is unset
 
+// 1. Configure CORS before Helmet
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: function (origin, callback) {
+      // Allow requests with no origin (e.g., Postman or server-to-server calls)
+      if (!origin) return callback(null, true);
+      
+      // Clean origin string (remove trailing slashes for comparison)
+      const cleanOrigin = origin.replace(/\/$/, "");
+      const isAllowed = allowedOrigins.some(
+        (allowed) => allowed && allowed.replace(/\/$/, "") === cleanOrigin
+      );
+
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS policy violation: " + origin));
+      }
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// 2. Configure Helmet (with cross-origin resource policy disabled for CORS)
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
   })
 );
 
 app.use(express.json());
 
+// Rate Limiting
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  message: { message: "Too many attempts from this IP, please try again later." },
+});
+
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/register", authLimiter);
+app.use(mongoSanitize());
+
 // Database Connection
 connectDB();
+
+// Initialize Socket.io with production CORS
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+  transports: ["websocket", "polling"],
+});
 
 // API Routes
 app.use("/api/auth", authRoutes);
