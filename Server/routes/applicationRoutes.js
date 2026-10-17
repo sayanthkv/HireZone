@@ -1,46 +1,23 @@
-
 const express = require("express");
-
+const router = express.Router();
 const {
   applyForJob,
   getMyApplications,
   getJobApplicants,
   updateApplicationStatus,
 } = require("../controllers/applicationController");
-
 const { protect } = require("../middleware/authMiddleware");
-const authorizeRoles = require("../middleware/authorizeRoles");
 
-const router = express.Router();
+// Student applies for a job
+router.post("/:jobId/apply", protect, applyForJob);
 
-// Student routes
-router.post(
-  "/job/:jobId",
-  protect,
-  authorizeRoles("student"),
-  applyForJob
-);
+// Student views their own applications
+router.get("/me", protect, getMyApplications);
 
-router.get(
-  "/my",
-  protect,
-  authorizeRoles("student"),
-  getMyApplications
-);
+// Recruiter views applicants for a job
+router.get("/job/:jobId", protect, getJobApplicants);
 
-// Recruiter routes
-router.get(
-  "/job/:jobId/applicants",
-  protect,
-  authorizeRoles("recruiter"),
-  getJobApplicants
-);
-
-router.patch(
-  "/:applicationId/status",
-  protect,
-  authorizeRoles("recruiter"),
-  updateApplicationStatus
-);
+// Recruiter updates status of an application
+router.put("/:applicationId/status", protect, updateApplicationStatus);
 
 module.exports = router;

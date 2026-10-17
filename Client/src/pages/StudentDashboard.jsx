@@ -35,21 +35,24 @@ export default function StudentDashboard() {
   const [error, setError] = useState("");
 
   const fetchApplications = async () => {
-    setLoading(true);
-    setError("");
+  
 
     try {
-      const response = await api.get("/applications/my");
-      setApplications(response.data.applications || []);
-    } catch (err) {
-      setError(
-        err.response?.data?.message || "Could not load applications"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    setLoading(true);
+    const response = await api.get("/applications/me");
 
+    // Extract applications array safely whether returned as object or array
+    const appsList = Array.isArray(response.data)
+      ? response.data
+      : response.data.applications || [];
+
+    setApplications(appsList);
+  } catch (err) {
+    setError("Failed to fetch your applications.");
+  } finally {
+    setLoading(false);
+  }
+};
   useEffect(() => {
     fetchApplications();
   }, []);

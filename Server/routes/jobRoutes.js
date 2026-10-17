@@ -3,6 +3,7 @@ const express = require("express");
 const {
   createJob,
   getJobs,
+  getRecruiterJobs,
   getJobById,
   updateJob,
   deleteJob,
@@ -15,9 +16,17 @@ const router = express.Router();
 
 // Public routes
 router.get("/", getJobs);
+
+// Recruiter routes (place static /my-jobs route before dynamic /:id parameter)
+router.get(
+  "/my-jobs",
+  protect,
+  authorizeRoles("recruiter"),
+  getRecruiterJobs
+);
+
 router.get("/:id", getJobById);
 
-// Recruiter-only routes
 router.post(
   "/",
   protect,

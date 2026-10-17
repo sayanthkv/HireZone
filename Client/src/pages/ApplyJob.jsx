@@ -57,11 +57,10 @@ export default function ApplyJob() {
     try {
       setSubmitting(true);
 
-      await api.post(`/applications/job/${jobId}`, {
-        resumeLink: resumeLink.trim(),
-        coverLetter: coverLetter.trim(),
-      });
-
+     await api.post(`/applications/${jobId}/apply`, {
+  resumeLink,
+  coverLetter,
+});
       setSuccess("Application submitted successfully!");
 
       setTimeout(() => {
