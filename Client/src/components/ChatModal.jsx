@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import api from "../services/api";
-import { socket } from "../../../Server/utils/socket" // Adjust this path to match your socket instance
+import { socket } from "../utils/socket";
 
 export default function ChatModal({
   applicationId,
