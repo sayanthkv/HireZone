@@ -32,10 +32,8 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (e.g., Postman or server-to-server calls)
       if (!origin) return callback(null, true);
       
-      // Clean origin string (remove trailing slashes for comparison)
       const cleanOrigin = origin.replace(/\/$/, "");
       const isAllowed = allowedOrigins.some(
         (allowed) => allowed && allowed.replace(/\/$/, "") === cleanOrigin
@@ -48,7 +46,8 @@ app.use(
       }
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    // ADDED "PATCH" HERE:
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
