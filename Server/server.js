@@ -5,8 +5,6 @@ const cors = require("cors");
 require("dotenv").config();
 
 const connectDB = require("./config/db");
-const { protect } = require("./middleware/authMiddleware");
-const authorizeRoles = require("./middleware/authorizeRoles");
 
 const authRoutes = require("./routes/authRoutes");
 const jobRoutes = require("./routes/jobRoutes");
@@ -19,7 +17,7 @@ const Application = require("./models/Application");
 const app = express();
 const server = http.createServer(app);
 
-// Initialize Socket.io with production CORS options
+// Initialize Socket.io
 const io = new Server(server, {
   cors: {
     origin: process.env.CLIENT_URL || "http://localhost:5173",
@@ -52,10 +50,18 @@ app.use("/api/chat", chatRoutes);
 io.on("connection", (socket) => {
   console.log("User connected to socket:", socket.id);
 
-  // Join a specific application chat room
+  // Join user's personal room for notification pings
+  socket.on("join_user_room", (userId) => {
+    if (userId) {
+      socket.join(userId);
+      console.log(`Socket ${socket.id} joined user room: ${userId}`);
+    }
+  });
+
+  // Join specific application chat room
   socket.on("join_room", (applicationId) => {
     socket.join(applicationId);
-    console.log(`Socket ${socket.id} joined room: ${applicationId}`);
+    console.log(`Socket ${socket.id} joined application room: ${applicationId}`);
   });
 
   // Handle incoming real-time messages
@@ -63,7 +69,6 @@ io.on("connection", (socket) => {
     const { applicationId, senderId, receiverId, text } = data;
 
     try {
-      // Validate application status before saving message
       const application = await Application.findById(applicationId);
 
       if (application && ["Shortlisted", "Hired"].includes(application.status)) {
@@ -74,8 +79,13 @@ io.on("connection", (socket) => {
           text,
         });
 
-        // Broadcast to everyone in the room
+        // Broadcast to application chat room
         io.to(applicationId).emit("receive_message", newMessage);
+
+        // Ping receiver's personal user room for navbar notification dot
+        if (receiverId) {
+          io.to(receiverId).emit("receive_message", newMessage);
+        }
       }
     } catch (err) {
       console.error("Socket message error:", err.message);

@@ -1,121 +1,287 @@
 import React, { useState, useEffect, useRef } from "react";
-import { io } from "socket.io-client";
 import api from "../services/api";
 
-const SOCKET_URL = import.meta.env.VITE_API_BASE_URL
-  ? import.meta.env.VITE_API_BASE_URL.replace("/api", "")
-  : "http://localhost:5000";
-
-let socket;
-
-const ChatModal = ({ applicationId, currentUserId, receiverId, applicantName, onClose }) => {
+export default function ChatModal({
+  applicationId,
+  currentUserId,
+  receiverId,
+  applicantName,
+  onClose,
+}) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
   const messagesEndRef = useRef(null);
 
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const fetchMessages = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const response = await api.get(`/chat/${applicationId}`);
+      setMessages(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Unable to load message history."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // Initialize web socket connection
-    socket = io(SOCKET_URL, {
-      transports: ["websocket", "polling"],
-      withCredentials: true,
-    });
-
-    socket.emit("join_room", applicationId);
-
-    // Fetch existing chat history
-    const fetchChatHistory = async () => {
-      try {
-        const res = await api.get(`/chat/${applicationId}`);
-        setMessages(res.data);
-      } catch (err) {
-        console.error("Failed to load chat history:", err);
-      }
-    };
-
-    fetchChatHistory();
-
-    // Listen for incoming messages
-    socket.on("receive_message", (message) => {
-      setMessages((prev) => [...prev, message]);
-    });
-
-    return () => {
-      socket.disconnect();
-    };
+    if (applicationId) {
+      fetchMessages();
+    }
   }, [applicationId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault();
-    if (!text.trim()) return;
+    if (!text.trim() || sending) return;
 
-    socket.emit("send_message", {
-      applicationId,
-      senderId: currentUserId,
-      receiverId,
-      text,
-    });
+    try {
+      setSending(true);
+      setError("");
 
-    setText("");
+      const response = await api.post("/chat/send", {
+        applicationId,
+        receiverId,
+        text: text.trim(),
+      });
+
+      setMessages((prev) => [...prev, response.data]);
+      setText("");
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to send message.");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg w-full max-w-md h-[500px] flex flex-col shadow-xl">
-        {/* Header */}
-        <div className="p-4 bg-blue-600 text-white rounded-t-lg flex justify-between items-center">
-          <h3 className="font-semibold">Chat with {applicantName}</h3>
-          <button onClick={onClose} className="text-white hover:text-gray-200 text-xl">
-            &times;
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100vw",
+        height: "100vh",
+        backgroundColor: "rgba(0, 0, 0, 0.4)",
+        zIndex: 1100,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "16px",
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "500px",
+          height: "600px",
+          maxHeight: "90vh",
+          backgroundColor: "#ffffff",
+          borderRadius: "12px",
+          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div
+          style={{
+            padding: "16px 20px",
+            borderBottom: "1px solid #e5e7eb",
+            backgroundColor: "#f9fafb",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600", color: "#111827" }}>
+              Conversation with {applicantName}
+            </h3>
+            <span style={{ fontSize: "12px", color: "#6b7280" }}>
+              HireZone Candidate Direct Messaging
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              border: "none",
+              background: "none",
+              fontSize: "20px",
+              cursor: "pointer",
+              color: "#9ca3af",
+              lineHeight: 1,
+            }}
+          >
+            ✕
           </button>
         </div>
 
-        {/* Message Container */}
-        <div className="flex-1 p-4 overflow-y-auto space-y-3">
-          {messages.map((msg, index) => {
-            const isMe = msg.sender === currentUserId;
+        {/* Message Thread Body */}
+        <div
+          style={{
+            flex: 1,
+            padding: "16px",
+            overflowY: "auto",
+            backgroundColor: "#f8fafc",
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+          }}
+        >
+          {loading && (
+            <p style={{ textAlign: "center", color: "#6b7280", fontSize: "14px" }}>
+              Loading conversation...
+            </p>
+          )}
+
+          {error && (
+            <div
+              style={{
+                backgroundColor: "#fee2e2",
+                color: "#991b1b",
+                padding: "10px",
+                borderRadius: "6px",
+                fontSize: "13px",
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          {!loading && messages.length === 0 && !error && (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "30px 20px",
+                color: "#6b7280",
+                fontSize: "14px",
+              }}
+            >
+              <p style={{ margin: 0, fontWeight: "500" }}>No messages yet</p>
+              <p style={{ margin: "4px 0 0 0", fontSize: "12px" }}>
+                Send a message below to start the discussion regarding interview scheduling or application updates.
+              </p>
+            </div>
+          )}
+
+          {messages.map((msg, idx) => {
+            const senderId =
+              typeof msg.sender === "object" ? msg.sender?._id : msg.sender;
+            const isMe = String(senderId) === String(currentUserId);
+
             return (
               <div
-                key={msg._id || index}
-                className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                key={msg._id || idx}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: isMe ? "flex-end" : "flex-start",
+                }}
               >
                 <div
-                  className={`max-w-[75%] p-3 rounded-lg text-sm ${
-                    isMe
-                      ? "bg-blue-600 text-white rounded-br-none"
-                      : "bg-gray-100 text-gray-800 rounded-bl-none"
-                  }`}
+                  style={{
+                    maxWidth: "80%",
+                    padding: "10px 14px",
+                    borderRadius: isMe ? "16px 16px 2px 16px" : "16px 16px 16px 2px",
+                    backgroundColor: isMe ? "#2563eb" : "#ffffff",
+                    color: isMe ? "#ffffff" : "#1f2937",
+                    border: isMe ? "none" : "1px solid #e2e8f0",
+                    fontSize: "14px",
+                    lineHeight: "1.4",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                  }}
                 >
                   {msg.text}
                 </div>
+
+                <span
+                  style={{
+                    fontSize: "10px",
+                    color: "#94a3b8",
+                    marginTop: "4px",
+                    padding: "0 4px",
+                  }}
+                >
+                  {msg.createdAt
+                    ? new Date(msg.createdAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "Just now"}
+                </span>
               </div>
             );
           })}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Form */}
-        <form onSubmit={handleSendMessage} className="p-3 border-t flex gap-2">
+        {/* Styled Footer Input Form */}
+        <form
+          onSubmit={handleSend}
+          style={{
+            padding: "12px 16px",
+            borderTop: "1px solid #e2e8f0",
+            backgroundColor: "#ffffff",
+            display: "flex",
+            gap: "8px",
+            alignItems: "center",
+          }}
+        >
           <input
             type="text"
-            className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Type your message..."
             value={text}
             onChange={(e) => setText(e.target.value)}
+            disabled={sending}
+            style={{
+              flex: 1,
+              padding: "10px 14px",
+              borderRadius: "20px",
+              border: "1px solid #cbd5e1",
+              fontSize: "14px",
+              outline: "none",
+              transition: "border-color 0.2s",
+            }}
           />
+
           <button
             type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+            disabled={sending || !text.trim()}
+            style={{
+              backgroundColor: text.trim() ? "#2563eb" : "#94a3b8",
+              color: "#ffffff",
+              padding: "10px 18px",
+              borderRadius: "20px",
+              border: "none",
+              fontWeight: "600",
+              fontSize: "14px",
+              cursor: text.trim() ? "pointer" : "default",
+              transition: "background-color 0.2s",
+            }}
           >
-            Send
+            {sending ? "Sending..." : "Send"}
           </button>
         </form>
       </div>
     </div>
   );
-};
-
-export default ChatModal;
+}
