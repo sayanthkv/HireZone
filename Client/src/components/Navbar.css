@@ -342,8 +342,7 @@
     max-width: none;
   }
 }
-
-/* Position the messages trigger to hold the absolute badge */
+/* Ensure button container allows absolute badge positioning */
 .hz-messages-trigger {
   position: relative;
   display: inline-flex;
@@ -351,7 +350,7 @@
   gap: 0.5rem;
 }
 
-/* Red Notification Ping Dot */
+/* Red Notification Ping Badge */
 .hz-unread-ping {
   position: absolute;
   top: -2px;

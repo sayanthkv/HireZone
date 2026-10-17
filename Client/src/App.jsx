@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import io from "socket.io-client";
+
+// 1. Import the centralized socket instance used across ChatModal
+import { socket } from "./utils/socket";
 
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -15,40 +17,44 @@ import RecruiterDashboard from "./pages/RecruiterDashboard";
 import RecruiterApplicants from "./pages/RecruiterApplicants";
 import ApplyJob from "./pages/ApplyJob";
 
-// Configure Socket.io instance pointing to backend URL
-const SOCKET_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
-const socket = io(SOCKET_URL, { autoConnect: false });
-
 function App() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
 
   useEffect(() => {
     const rawUser = localStorage.getItem("user");
-    if (rawUser) {
+    if (!rawUser) return;
+
+    try {
       const user = JSON.parse(rawUser);
-      const userId = user._id || user.id;
+      const userId = (user._id || user.id)?.toString();
 
       if (userId) {
-        socket.connect();
+        // Ensure connection & join personal user room
+        if (!socket.connected) socket.connect();
         socket.emit("join_user_room", userId);
 
-        socket.on("receive_message", () => {
-          // Trigger red notification dot if message drawer is closed
-          setHasUnreadMessages(true);
-        });
-      }
-    }
+        const handleReceiveMessage = (newMessage) => {
+          // Trigger red dot ONLY if message drawer/modal is closed
+          if (!isDrawerOpen) {
+            setHasUnreadMessages(true);
+          }
+        };
 
-    return () => {
-      socket.off("receive_message");
-      socket.disconnect();
-    };
-  }, []);
+        socket.on("receive_message", handleReceiveMessage);
+
+        return () => {
+          socket.off("receive_message", handleReceiveMessage);
+        };
+      }
+    } catch (err) {
+      console.error("Auth context parse error:", err);
+    }
+  }, [isDrawerOpen]);
 
   const handleOpenDrawer = () => {
     setIsDrawerOpen(true);
-    setHasUnreadMessages(false); // Clear notification dot when opened
+    setHasUnreadMessages(false); // Clear red dot when user opens messages
   };
 
   const handleCloseDrawer = () => {
