@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import api from "../services/api";
+import { socket } from "../utils/socket"; // Adjust this path to match your socket instance
 
 export default function ChatModal({
   applicationId,
@@ -34,16 +35,53 @@ export default function ChatModal({
     }
   };
 
+  // 1. Initial REST API Fetch
   useEffect(() => {
     if (applicationId) {
       fetchMessages();
     }
   }, [applicationId]);
 
+  // 2. Real-Time Socket.io Connection & Room Handling
+  useEffect(() => {
+    if (!applicationId || !socket) return;
+
+    // Join the specific application chat room
+    socket.emit("join_room", applicationId);
+
+    // Handler for incoming messages broadcast by backend
+    const handleReceiveMessage = (newMessage) => {
+      // Ensure the message belongs to this active conversation
+      const msgAppId =
+        typeof newMessage.application === "object"
+          ? newMessage.application?._id
+          : newMessage.application;
+
+      if (String(msgAppId) === String(applicationId)) {
+        setMessages((prevMessages) => {
+          // Avoid duplicate entries (in case sender's post request already appended it)
+          const isDuplicate = prevMessages.some(
+            (msg) => msg._id && newMessage._id && msg._id === newMessage._id
+          );
+          if (isDuplicate) return prevMessages;
+          return [...prevMessages, newMessage];
+        });
+      }
+    };
+
+    socket.on("receive_message", handleReceiveMessage);
+
+    return () => {
+      socket.off("receive_message", handleReceiveMessage);
+    };
+  }, [applicationId]);
+
+  // 3. Auto Scroll on Message Array Update
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
+  // 4. Send Message Handler
   const handleSend = async (e) => {
     e.preventDefault();
     if (!text.trim() || sending) return;
@@ -58,7 +96,22 @@ export default function ChatModal({
         text: text.trim(),
       });
 
-      setMessages((prev) => [...prev, response.data]);
+      // Optimistically append sent message locally
+      setMessages((prev) => {
+        const isDuplicate = prev.some((msg) => msg._id === response.data._id);
+        return isDuplicate ? prev : [...prev, response.data];
+      });
+
+      // Emit socket event so backend broadcasts it to the room immediately
+      if (socket) {
+        socket.emit("send_message", {
+          applicationId,
+          senderId: currentUserId,
+          receiverId,
+          text: text.trim(),
+        });
+      }
+
       setText("");
     } catch (err) {
       setError(err.response?.data?.message || "Failed to send message.");
@@ -92,7 +145,8 @@ export default function ChatModal({
           maxHeight: "90vh",
           backgroundColor: "#ffffff",
           borderRadius: "12px",
-          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+          boxShadow:
+            "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -111,7 +165,14 @@ export default function ChatModal({
           }}
         >
           <div>
-            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600", color: "#111827" }}>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: "16px",
+                fontWeight: "600",
+                color: "#111827",
+              }}
+            >
               Conversation with {applicantName}
             </h3>
             <span style={{ fontSize: "12px", color: "#6b7280" }}>
@@ -148,7 +209,13 @@ export default function ChatModal({
           }}
         >
           {loading && (
-            <p style={{ textAlign: "center", color: "#6b7280", fontSize: "14px" }}>
+            <p
+              style={{
+                textAlign: "center",
+                color: "#6b7280",
+                fontSize: "14px",
+              }}
+            >
               Loading conversation...
             </p>
           )}
@@ -178,7 +245,8 @@ export default function ChatModal({
             >
               <p style={{ margin: 0, fontWeight: "500" }}>No messages yet</p>
               <p style={{ margin: "4px 0 0 0", fontSize: "12px" }}>
-                Send a message below to start the discussion regarding interview scheduling or application updates.
+                Send a message below to start the discussion regarding interview
+                scheduling or application updates.
               </p>
             </div>
           )}
@@ -201,7 +269,9 @@ export default function ChatModal({
                   style={{
                     maxWidth: "80%",
                     padding: "10px 14px",
-                    borderRadius: isMe ? "16px 16px 2px 16px" : "16px 16px 16px 2px",
+                    borderRadius: isMe
+                      ? "16px 16px 2px 16px"
+                      : "16px 16px 16px 2px",
                     backgroundColor: isMe ? "#2563eb" : "#ffffff",
                     color: isMe ? "#ffffff" : "#1f2937",
                     border: isMe ? "none" : "1px solid #e2e8f0",
@@ -234,7 +304,7 @@ export default function ChatModal({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Styled Footer Input Form */}
+        {/* Input Form */}
         <form
           onSubmit={handleSend}
           style={{
@@ -259,7 +329,6 @@ export default function ChatModal({
               border: "1px solid #cbd5e1",
               fontSize: "14px",
               outline: "none",
-              transition: "border-color 0.2s",
             }}
           />
 
@@ -275,7 +344,6 @@ export default function ChatModal({
               fontWeight: "600",
               fontSize: "14px",
               cursor: text.trim() ? "pointer" : "default",
-              transition: "background-color 0.2s",
             }}
           >
             {sending ? "Sending..." : "Send"}
