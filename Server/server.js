@@ -1,18 +1,34 @@
 const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
 const cors = require("cors");
 require("dotenv").config();
+
+const connectDB = require("./config/db");
 const { protect } = require("./middleware/authMiddleware");
 const authorizeRoles = require("./middleware/authorizeRoles");
 
-const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const jobRoutes = require("./routes/jobRoutes");
 const applicationRoutes = require("./routes/applicationRoutes");
 const profileRoutes = require("./routes/profileRoutes");
+const chatRoutes = require("./routes/chatRoutes");
+const Message = require("./models/Message");
+const Application = require("./models/Application");
 
 const app = express();
+const server = http.createServer(app);
 
-// Updated CORS configuration for production deployment
+// Initialize Socket.io with production CORS options
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+  transports: ["websocket", "polling"],
+});
+
 app.use(
   cors({
     origin: process.env.CLIENT_URL || "http://localhost:5173",
@@ -22,7 +38,7 @@ app.use(
 
 app.use(express.json());
 
-// Connect Database
+// Database Connection
 connectDB();
 
 // API Routes
@@ -30,35 +46,53 @@ app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/chat", chatRoutes);
 
-// Root Health Check Route for Render
+// Socket.io Real-time Handlers
+io.on("connection", (socket) => {
+  console.log("User connected to socket:", socket.id);
+
+  // Join a specific application chat room
+  socket.on("join_room", (applicationId) => {
+    socket.join(applicationId);
+    console.log(`Socket ${socket.id} joined room: ${applicationId}`);
+  });
+
+  // Handle incoming real-time messages
+  socket.on("send_message", async (data) => {
+    const { applicationId, senderId, receiverId, text } = data;
+
+    try {
+      // Validate application status before saving message
+      const application = await Application.findById(applicationId);
+
+      if (application && ["Shortlisted", "Hired"].includes(application.status)) {
+        const newMessage = await Message.create({
+          application: applicationId,
+          sender: senderId,
+          receiver: receiverId,
+          text,
+        });
+
+        // Broadcast to everyone in the room
+        io.to(applicationId).emit("receive_message", newMessage);
+      }
+    } catch (err) {
+      console.error("Socket message error:", err.message);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
+});
+
 app.get("/", (req, res) => {
-  res.json({
-    message: "HireZone API is running",
-  });
+  res.json({ message: "HireZone API with Socket.io is running" });
 });
-
-app.get("/api/auth/me", protect, (req, res) => {
-  res.json({
-    message: "You accessed a protected route!",
-    user: req.user,
-  });
-});
-
-app.get(
-  "/api/auth/recruiter-test",
-  protect,
-  authorizeRoles("recruiter"),
-  (req, res) => {
-    res.json({
-      message: "Welcome! You have recruiter access.",
-      user: req.user,
-    });
-  }
-);
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

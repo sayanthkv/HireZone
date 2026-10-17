@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../services/api";
+import ChatModal from "../components/ChatModal";
 import "./HireZoneFeatures.css";
 
 const statusOptions = [
@@ -14,7 +15,6 @@ const statusOptions = [
 
 const formatDate = (date) => {
   if (!date) return "Date unavailable";
-
   const parsedDate = new Date(date);
 
   if (Number.isNaN(parsedDate.getTime())) {
@@ -33,26 +33,29 @@ export default function StudentDashboard() {
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedChat, setSelectedChat] = useState(null);
+
+  // Retrieve logged-in student user object safely from localStorage
+  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
 
   const fetchApplications = async () => {
-  
-
     try {
-    setLoading(true);
-    const response = await api.get("/applications/me");
+      setLoading(true);
+      const response = await api.get("/applications/me");
 
-    // Extract applications array safely whether returned as object or array
-    const appsList = Array.isArray(response.data)
-      ? response.data
-      : response.data.applications || [];
+      // Extract applications array safely whether returned as object or array
+      const appsList = Array.isArray(response.data)
+        ? response.data
+        : response.data.applications || [];
 
-    setApplications(appsList);
-  } catch (err) {
-    setError("Failed to fetch your applications.");
-  } finally {
-    setLoading(false);
-  }
-};
+      setApplications(appsList);
+    } catch (err) {
+      setError("Failed to fetch your applications.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchApplications();
   }, []);
@@ -195,6 +198,8 @@ export default function StudentDashboard() {
               const job = application.job;
               const status = application.status || "Pending";
               const statusClass = status.toLowerCase().replace(/\s+/g, "-");
+              const recruiter = job?.postedBy;
+              const isChatEligible = ["Shortlisted", "Hired"].includes(status);
 
               return (
                 <article
@@ -243,12 +248,41 @@ export default function StudentDashboard() {
                     <span className={`status-pill ${statusClass}`}>
                       {status}
                     </span>
+
+                    {/* Chat button only renders when shortlisted or hired */}
+                    {isChatEligible && (
+                      <button
+                        className="secondary-button chat-trigger-button"
+                        type="button"
+                        style={{ marginTop: "10px" }}
+                        onClick={() =>
+                          setSelectedChat({
+                            applicationId: application._id,
+                            receiverId: recruiter?._id || recruiter,
+                            recruiterName: recruiter?.name || "Recruiter",
+                          })
+                        }
+                      >
+                        💬 Chat with Recruiter
+                      </button>
+                    )}
                   </div>
                 </article>
               );
             })}
         </div>
       </section>
+
+      {/* Render Chat Modal overlay */}
+      {selectedChat && (
+        <ChatModal
+          applicationId={selectedChat.applicationId}
+          currentUserId={currentUser._id || currentUser.id}
+          receiverId={selectedChat.receiverId}
+          applicantName={selectedChat.recruiterName}
+          onClose={() => setSelectedChat(null)}
+        />
+      )}
     </main>
   );
 }

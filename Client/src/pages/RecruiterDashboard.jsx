@@ -1,12 +1,9 @@
-
-
 import { useCallback, useEffect, useState } from "react";
-
-
 import { Link } from "react-router-dom";
 import api from "../services/api";
 import "./HireZoneFeatures.css";
 import { useAuth } from "../context/AuthContext";
+import ChatModal from "../components/ChatModal";
 
 const initialForm = {
   title: "",
@@ -32,6 +29,7 @@ export default function RecruiterDashboard() {
   const [editingJobId, setEditingJobId] = useState(null);
   const [selectedJob, setSelectedJob] = useState("");
   const [applicants, setApplicants] = useState([]);
+  const [selectedChat, setSelectedChat] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingJobId, setDeletingJobId] = useState("");
@@ -39,98 +37,73 @@ export default function RecruiterDashboard() {
   const [updatingApplicationId, setUpdatingApplicationId] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
- 
-const fetchJobs = useCallback(async () => {
-  setLoading(true);
+  const currentUserId = user?._id || user?.id || user?.user?._id || user?.user?.id;
 
-  try {
-    setError("");
+  const fetchJobs = useCallback(async () => {
+    setLoading(true);
 
-    console.log("Fetching jobs...");
-    console.log("API URL:", api.defaults.baseURL);
-    console.log("Logged-in user:", user);
+    try {
+      setError("");
 
-    const response = await api.get("/jobs?limit=100");
+      const response = await api.get("/jobs?limit=100");
 
-    console.log("Jobs API response:", response.data);
+      const allJobs = Array.isArray(response.data.jobs)
+        ? response.data.jobs
+        : [];
 
-    const allJobs = Array.isArray(response.data.jobs)
-      ? response.data.jobs
-      : [];
+      const userId =
+        user?._id ||
+        user?.id ||
+        user?.user?._id ||
+        user?.user?.id;
 
-    const userId =
-      user?._id ||
-      user?.id ||
-      user?.user?._id ||
-      user?.user?.id;
+      if (!userId) {
+        setJobs([]);
+        setError(
+          "Unable to identify the logged-in recruiter. Please log out and log in again."
+        );
+        return;
+      }
 
-    console.log("Logged-in user ID:", userId);
-
-    console.log(
-      "Job owner IDs:",
-      allJobs.map((job) => ({
-        title: job.title,
-        ownerId:
+      const ownJobs = allJobs.filter((job) => {
+        const ownerId =
           typeof job.postedBy === "object"
             ? job.postedBy?._id
-            : job.postedBy,
-      }))
-    );
+            : job.postedBy;
 
-    if (!userId) {
+        return (
+          ownerId &&
+          String(ownerId) === String(userId)
+        );
+      });
+
+      setJobs(ownJobs);
+    } catch (err) {
       setJobs([]);
-      setError(
-        "Unable to identify the logged-in recruiter. Please log out and log in again."
-      );
-      return;
+
+      if (err.code === "ECONNABORTED") {
+        setError(
+          "The server took too long to respond. Please try again."
+        );
+      } else {
+        setError(
+          err.response?.data?.message ||
+          err.message ||
+          "Could not load jobs."
+        );
+      }
+    } finally {
+      setLoading(false);
     }
+  }, [user]);
 
-    const ownJobs = allJobs.filter((job) => {
-      const ownerId =
-        typeof job.postedBy === "object"
-          ? job.postedBy?._id
-          : job.postedBy;
-
-      return (
-        ownerId &&
-        String(ownerId) === String(userId)
-      );
-    });
-
-    console.log("Total jobs received:", allJobs.length);
-    console.log("Recruiter's jobs:", ownJobs.length);
-
-    setJobs(ownJobs);
-  } catch (error) {
-    console.error("Failed to fetch jobs:", error);
-
-    setJobs([]);
-
-    if (error.code === "ECONNABORTED") {
-      setError(
-        "The server took too long to respond. Please try again."
-      );
-    } else {
-      setError(
-        error.response?.data?.message ||
-        error.message ||
-        "Could not load jobs."
-      );
+  useEffect(() => {
+    if (!authLoading) {
+      fetchJobs();
     }
-  } finally {
-    setLoading(false);
-    console.log("Finished fetching jobs.");
-  }
-}, [user, setError, setJobs, setLoading]);
-
-useEffect(() => {
-  if (!authLoading) {
-    fetchJobs();
-  }
-}, [authLoading, fetchJobs]);
-
+  }, [authLoading, fetchJobs]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -287,9 +260,6 @@ useEffect(() => {
   const selectedJobTitle =
     jobs.find((job) => job._id === selectedJob)?.title || "Selected job";
 
-    useEffect(() => {
-  fetchJobs();
-}, []);
   return (
     <main className="dashboard-page">
       <section className="dashboard-heading">
@@ -484,8 +454,9 @@ useEffect(() => {
                   View applicants
                 </button>
 
+                {/* Fixed Route URL to match App.jsx */}
                 <Link
-                  to={`/recruiter/jobs/${job._id}/applicants`}
+                  to={`/recruiter/job/${job._id}/applicants`}
                   className="text-link"
                 >
                   Open applicants page →
@@ -526,60 +497,109 @@ useEffect(() => {
           )}
 
           <div className="applicant-list">
-            {applicants.map((application) => (
-              <article className="application-card" key={application._id}>
-                <div className="applicant-details">
-                  <h3>{application.student?.name || "Student"}</h3>
-                  <p>{application.student?.email || "Email unavailable"}</p>
+            {applicants.map((application) => {
+              const student = application.student || {};
+              const studentId = student._id || student.id || student;
+              const receiverId = typeof studentId === "object" ? studentId._id : studentId;
+              const currentStatus = String(application.status || "Pending").trim();
+              const isChatEligible =
+                currentStatus.toLowerCase() === "shortlisted" ||
+                currentStatus.toLowerCase() === "hired";
 
-                  <p className="muted">
-                    Applied{" "}
-                    {application.createdAt
-                      ? new Date(application.createdAt).toLocaleDateString()
-                      : "date unavailable"}
-                  </p>
+              return (
+                <article className="application-card" key={application._id}>
+                  <div className="applicant-details">
+                    <h3>{student?.name || "Student"}</h3>
+                    <p>{student?.email || "Email unavailable"}</p>
 
-                  {application.resumeLink && (
-                    <p>
-                      <a
-                        href={application.resumeLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        View resume ↗
-                      </a>
+                    <p className="muted">
+                      Applied{" "}
+                      {application.createdAt
+                        ? new Date(application.createdAt).toLocaleDateString()
+                        : "date unavailable"}
                     </p>
-                  )}
 
-                  {application.coverLetter && (
-                    <details className="cover-letter-details">
-                      <summary>Read cover letter</summary>
-                      <p>{application.coverLetter}</p>
-                    </details>
-                  )}
-                </div>
+                    {application.resumeLink && (
+                      <p>
+                        <a
+                          href={application.resumeLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          View resume ↗
+                        </a>
+                      </p>
+                    )}
 
-                <label className="status-control">
-                  Application status
-                  <select
-                    value={application.status}
-                    disabled={updatingApplicationId === application._id}
-                    onChange={(event) =>
-                      handleStatusChange(application._id, event.target.value)
-                    }
-                  >
-                    {statusOptions.map((status) => (
-                      <option key={status}>{status}</option>
-                    ))}
-                  </select>
-                  {updatingApplicationId === application._id && (
-                    <span className="muted">Updating...</span>
-                  )}
-                </label>
-              </article>
-            ))}
+                    {application.coverLetter && (
+                      <details className="cover-letter-details">
+                        <summary>Read cover letter</summary>
+                        <p>{application.coverLetter}</p>
+                      </details>
+                    )}
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "flex-end" }}>
+                    {/* Render Chat Button directly inside Dashboard view */}
+                    {isChatEligible && (
+                      <button
+                        type="button"
+                        style={{
+                          backgroundColor: "#16a34a",
+                          color: "#ffffff",
+                          padding: "6px 12px",
+                          borderRadius: "6px",
+                          fontWeight: "600",
+                          fontSize: "13px",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                        onClick={() =>
+                          setSelectedChat({
+                            applicationId: application._id,
+                            receiverId,
+                            applicantName: student?.name || "Student",
+                          })
+                        }
+                      >
+                        💬 Message Candidate
+                      </button>
+                    )}
+
+                    <label className="status-control">
+                      Application status
+                      <select
+                        value={application.status}
+                        disabled={updatingApplicationId === application._id}
+                        onChange={(event) =>
+                          handleStatusChange(application._id, event.target.value)
+                        }
+                      >
+                        {statusOptions.map((status) => (
+                          <option key={status}>{status}</option>
+                        ))}
+                      </select>
+                      {updatingApplicationId === application._id && (
+                        <span className="muted">Updating...</span>
+                      )}
+                    </label>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
+      )}
+
+      {/* Render Chat Modal Overlay */}
+      {selectedChat && (
+        <ChatModal
+          applicationId={selectedChat.applicationId}
+          currentUserId={currentUserId}
+          receiverId={selectedChat.receiverId}
+          applicantName={selectedChat.applicantName}
+          onClose={() => setSelectedChat(null)}
+        />
       )}
     </main>
   );

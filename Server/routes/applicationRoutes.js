@@ -7,17 +7,25 @@ const {
   updateApplicationStatus,
 } = require("../controllers/applicationController");
 const { protect } = require("../middleware/authMiddleware");
+const authorizeRoles = require("../middleware/authorizeRoles");
 
-// Student applies for a job
-router.post("/:jobId/apply", protect, applyForJob);
+// Student routes
+router.post("/apply/:jobId", protect, authorizeRoles("student"), applyForJob);
+router.get("/me", protect, authorizeRoles("student"), getMyApplications);
 
-// Student views their own applications
-router.get("/me", protect, getMyApplications);
+// Recruiter routes
+router.get(
+  "/job/:jobId/applicants",
+  protect,
+  authorizeRoles("recruiter"),
+  getJobApplicants
+);
 
-// Recruiter views applicants for a job
-router.get("/job/:jobId", protect, getJobApplicants);
-
-// Recruiter updates status of an application
-router.put("/:applicationId/status", protect, updateApplicationStatus);
+router.patch(
+  "/:applicationId/status",
+  protect,
+  authorizeRoles("recruiter"),
+  updateApplicationStatus
+);
 
 module.exports = router;

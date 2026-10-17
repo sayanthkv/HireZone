@@ -14,7 +14,6 @@ const applyForJob = async (req, res) => {
       return res.status(400).json({ message: "Invalid job ID" });
     }
 
-    // Validate URL BEFORE creating document in database
     if (resumeLink) {
       try {
         const url = new URL(resumeLink);
@@ -30,7 +29,6 @@ const applyForJob = async (req, res) => {
       }
     }
 
-    // Populate postedBy to fetch the recruiter's name and email
     const job = await Job.findById(jobId).populate("postedBy", "name email");
 
     if (!job) {
@@ -55,7 +53,6 @@ const applyForJob = async (req, res) => {
       coverLetter,
     });
 
-    // Send confirmation email to student safely
     if (req.user.email) {
       sendEmail({
         to: req.user.email,
@@ -68,10 +65,9 @@ const applyForJob = async (req, res) => {
             <p>Best of luck!</p>
           </div>
         `,
-      }).catch((err) => console.error("Failed to send student confirmation email:", err.message));
+      }).catch((err) => console.error("Failed to send student email:", err.message));
     }
 
-    // Send notification email to recruiter safely
     const recruiter = job.postedBy;
     if (
       recruiter &&
@@ -89,7 +85,7 @@ const applyForJob = async (req, res) => {
             <p><strong>${req.user.name || "A candidate"}</strong> (${req.user.email}) applied for <strong>${job.title}</strong>.</p>
           </div>
         `,
-      }).catch((err) => console.error("Failed to send recruiter alert email:", err.message));
+      }).catch((err) => console.error("Failed to send recruiter email:", err.message));
     }
 
     return res.status(201).json({
@@ -115,9 +111,7 @@ const getMyApplications = async (req, res) => {
   try {
     const userId = req.user._id || req.user.id;
 
-    const applications = await Application.find({
-      student: userId,
-    })
+    const applications = await Application.find({ student: userId })
       .populate({
         path: "job",
         populate: { path: "postedBy", select: "name email" },
@@ -140,7 +134,7 @@ const getMyApplications = async (req, res) => {
 const getJobApplicants = async (req, res) => {
   try {
     const { jobId } = req.params;
-    const userId = req.user._id || req.user.id;
+    const userId = (req.user._id || req.user.id).toString();
 
     if (!mongoose.isValidObjectId(jobId)) {
       return res.status(400).json({ message: "Invalid job ID" });
@@ -152,9 +146,11 @@ const getJobApplicants = async (req, res) => {
       return res.status(404).json({ message: "Job not found" });
     }
 
-    const jobOwnerId = (job.postedBy || job.recruiter)?.toString();
+    // Safely extract raw ID string whether postedBy is populated or an ObjectId
+    const jobOwnerField = job.postedBy || job.recruiter;
+    const jobOwnerId = (jobOwnerField?._id || jobOwnerField)?.toString();
 
-    if (jobOwnerId !== userId.toString()) {
+    if (jobOwnerId !== userId) {
       return res.status(403).json({
         message: "You can only view applicants for your own jobs",
       });
@@ -177,52 +173,39 @@ const getJobApplicants = async (req, res) => {
   }
 };
 
-// Recruiter updates the status of an application
+// Recruiter updates application status
 const updateApplicationStatus = async (req, res) => {
   try {
     const { applicationId } = req.params;
     const { status } = req.body;
-    const userId = req.user._id || req.user.id;
+    const userId = (req.user._id || req.user.id).toString();
 
-    const allowedStatuses = [
-      "Pending",
-      "Reviewed",
-      "Shortlisted",
-      "Rejected",
-      "Hired",
-    ];
+    const allowedStatuses = ["Pending", "Reviewed", "Shortlisted", "Rejected", "Hired"];
 
     if (!mongoose.isValidObjectId(applicationId)) {
-      return res.status(400).json({
-        message: "Invalid application ID",
-      });
+      return res.status(400).json({ message: "Invalid application ID" });
     }
 
     if (!allowedStatuses.includes(status)) {
-      return res.status(400).json({
-        message: "Invalid application status",
-      });
+      return res.status(400).json({ message: "Invalid application status" });
     }
 
     const application = await Application.findById(applicationId).populate("student", "name email");
 
     if (!application) {
-      return res.status(404).json({
-        message: "Application not found",
-      });
+      return res.status(404).json({ message: "Application not found" });
     }
 
     const job = await Job.findById(application.job);
 
     if (!job) {
-      return res.status(404).json({
-        message: "Associated job not found",
-      });
+      return res.status(404).json({ message: "Associated job not found" });
     }
 
-    const jobOwnerId = (job.postedBy || job.recruiter)?.toString();
+    const jobOwnerField = job.postedBy || job.recruiter;
+    const jobOwnerId = (jobOwnerField?._id || jobOwnerField)?.toString();
 
-    if (jobOwnerId !== userId.toString()) {
+    if (jobOwnerId !== userId) {
       return res.status(403).json({
         message: "You can only update applications for your own jobs",
       });
@@ -231,7 +214,6 @@ const updateApplicationStatus = async (req, res) => {
     application.status = status;
     await application.save();
 
-    // Send status update email to student safely
     if (application.student && application.student.email) {
       sendEmail({
         to: application.student.email,
@@ -243,7 +225,7 @@ const updateApplicationStatus = async (req, res) => {
             <p>Your application status for <strong>${job.title}</strong> at <strong>${job.company}</strong> has been updated to: <strong>${status}</strong>.</p>
           </div>
         `,
-      }).catch((err) => console.error("Failed to send status update email:", err.message));
+      }).catch((err) => console.error("Failed to send status email:", err.message));
     }
 
     return res.status(200).json({
