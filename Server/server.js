@@ -17,7 +17,6 @@ const chatRoutes = require("./routes/chatRoutes");
 const Message = require("./models/Message");
 const Application = require("./models/Application");
 
-
 const app = express();
 const server = http.createServer(app);
 
@@ -33,7 +32,7 @@ app.use(
   cors({
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
-      
+
       const cleanOrigin = origin.replace(/\/$/, "");
       const isAllowed = allowedOrigins.some(
         (allowed) => allowed && allowed.replace(/\/$/, "") === cleanOrigin
@@ -46,13 +45,12 @@ app.use(
       }
     },
     credentials: true,
-    // ADDED "PATCH" HERE:
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// 2. Configure Helmet (with cross-origin resource policy disabled for CORS)
+// 2. Configure Helmet
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
@@ -114,31 +112,18 @@ io.on("connection", (socket) => {
     console.log(`Socket ${socket.id} joined application room: ${applicationId}`);
   });
 
-  // Handle incoming real-time messages
-  socket.on("send_message", async (data) => {
-    const { applicationId, senderId, receiverId, text } = data;
+  // Handle real-time message broadcasting (DB save is already handled by REST API)
+  socket.on("send_message", (data) => {
+    const { applicationId, receiverId } = data;
 
-    try {
-      const application = await Application.findById(applicationId);
+    // 1. Broadcast message to application room
+    if (applicationId) {
+      io.to(applicationId).emit("receive_message", data);
+    }
 
-      if (application && ["Shortlisted", "Hired"].includes(application.status)) {
-        const newMessage = await Message.create({
-          application: applicationId,
-          sender: senderId,
-          receiver: receiverId,
-          text,
-        });
-
-        // Broadcast to application chat room
-        io.to(applicationId).emit("receive_message", newMessage);
-
-        // Ping receiver's personal user room for navbar notification dot
-        if (receiverId) {
-          io.to(receiverId).emit("receive_message", newMessage);
-        }
-      }
-    } catch (err) {
-      console.error("Socket message error:", err.message);
+    // 2. Ping receiver's personal user room for navbar notification dot
+    if (receiverId) {
+      io.to(receiverId).emit("receive_message", data);
     }
   });
 
