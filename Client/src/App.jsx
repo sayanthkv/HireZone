@@ -14,6 +14,7 @@ import StudentDashboard from "./pages/StudentDashboard";
 import RecruiterDashboard from "./pages/RecruiterDashboard";
 import RecruiterApplicants from "./pages/RecruiterApplicants";
 import ApplyJob from "./pages/ApplyJob";
+import Footer from "./components/Footer";
 
 function App() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -151,6 +152,34 @@ function App() {
         unreadApplicationIds={unreadApplicationIds}
         onSelectConversation={handleClearApplicationUnread}
       />
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <Navbar
+          onOpenMessages={handleOpenDrawer}
+          hasUnreadMessages={hasUnreadMessages}
+        />
+
+        <div style={{ flex: 1 }}>
+          <Routes>
+            {/* All your existing routes here */}
+          </Routes>
+        </div>
+
+        <MessageDrawer
+          isOpen={isDrawerOpen}
+          onClose={handleCloseDrawer}
+          unreadApplicationIds={unreadApplicationIds}
+          onSelectConversation={handleClearApplicationUnread}
+        />
+
+        {/* Footer component added here */}
+        <Footer />
+      </div>
     </Router>
   );
 }
