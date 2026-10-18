@@ -7,6 +7,7 @@ export default function MessageDrawer({
   onClose,
   unreadApplicationIds = [], // Receives array of unread Application IDs
   onSelectConversation, // Function to clear unread status for a specific application
+  setActiveChatAppId, // Received from App.jsx to track active open chat
 }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -98,6 +99,27 @@ export default function MessageDrawer({
       .join("")
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const handleCardClick = (app, partnerId, partnerName) => {
+    if (onSelectConversation) {
+      onSelectConversation(app._id);
+    }
+    if (setActiveChatAppId) {
+      setActiveChatAppId(String(app._id));
+    }
+    setActiveChat({
+      applicationId: app._id,
+      receiverId: partnerId,
+      name: partnerName,
+    });
+  };
+
+  const handleCloseChatModal = () => {
+    setActiveChat(null);
+    if (setActiveChatAppId) {
+      setActiveChatAppId(null);
+    }
   };
 
   if (!isOpen) return null;
@@ -297,16 +319,7 @@ export default function MessageDrawer({
                     alignItems: "center",
                     gap: "14px",
                   }}
-                  onClick={() => {
-                    if (onSelectConversation) {
-                      onSelectConversation(app._id);
-                    }
-                    setActiveChat({
-                      applicationId: app._id,
-                      receiverId: partnerId,
-                      name: partnerName,
-                    });
-                  }}
+                  onClick={() => handleCardClick(app, partnerId, partnerName)}
                 >
                   {/* User Initial Avatar Badge */}
                   <div
@@ -414,7 +427,7 @@ export default function MessageDrawer({
           currentUserId={currentUserId}
           receiverId={activeChat.receiverId}
           applicantName={activeChat.name}
-          onClose={() => setActiveChat(null)}
+          onClose={handleCloseChatModal}
         />
       )}
     </div>

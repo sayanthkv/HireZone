@@ -20,8 +20,11 @@ function App() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
 
-  // Track unread messages strictly by Application ID instead of Sender ID
+  // Track unread messages strictly by Application ID
   const [unreadApplicationIds, setUnreadApplicationIds] = useState([]);
+
+  // NEW: Track which application chat session is currently active/open
+  const [activeChatAppId, setActiveChatAppId] = useState(null);
 
   useEffect(() => {
     const rawUser = localStorage.getItem("user");
@@ -41,7 +44,7 @@ function App() {
               ? newMessage.sender?._id
               : newMessage.sender;
 
-          // 1. SENDER CHECK: Do not show red dot if WE sent the message
+          // 1. SENDER CHECK: Ignore if WE sent the message
           if (String(senderId) === String(userId)) return;
 
           // Extract application ID safely from socket payload
@@ -50,14 +53,19 @@ function App() {
               ? newMessage.application?._id
               : newMessage.application || newMessage.applicationId;
 
-          // 2. Add the specific applicationId to the unread list
-          if (!isDrawerOpen) {
-            setHasUnreadMessages(true);
-            if (appId) {
-              setUnreadApplicationIds((prev) => [
-                ...new Set([...prev, String(appId)]),
-              ]);
-            }
+          const appIdStr = String(appId);
+
+          // 2. ACTIVE CHAT CHECK: If the user is currently viewing THIS chat session, do NOT mark as unread!
+          if (activeChatAppId && String(activeChatAppId) === appIdStr) {
+            return;
+          }
+
+          // 3. Otherwise, set unread state
+          setHasUnreadMessages(true);
+          if (appId) {
+            setUnreadApplicationIds((prev) => [
+              ...new Set([...prev, appIdStr]),
+            ]);
           }
         };
 
@@ -70,7 +78,7 @@ function App() {
     } catch (err) {
       console.error("Auth context parse error:", err);
     }
-  }, [isDrawerOpen]);
+  }, [isDrawerOpen, activeChatAppId]); // Depend on activeChatAppId
 
   const handleOpenDrawer = () => {
     setIsDrawerOpen(true);
@@ -81,7 +89,7 @@ function App() {
     setIsDrawerOpen(false);
   };
 
-  // Clear unread badge for a SPECIFIC application when selected
+  // Clear unread badge for a SPECIFIC application when selected or active
   const handleClearApplicationUnread = (appId) => {
     setUnreadApplicationIds((prev) =>
       prev.filter((id) => id !== String(appId))
@@ -90,13 +98,7 @@ function App() {
 
   return (
     <Router>
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
         <Navbar
           onOpenMessages={handleOpenDrawer}
           hasUnreadMessages={hasUnreadMessages}
@@ -160,6 +162,7 @@ function App() {
           onClose={handleCloseDrawer}
           unreadApplicationIds={unreadApplicationIds}
           onSelectConversation={handleClearApplicationUnread}
+          setActiveChatAppId={setActiveChatAppId} // Pass setter to MessageDrawer
         />
 
         <Footer />
