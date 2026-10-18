@@ -90,44 +90,45 @@ export default function ChatModal({
   }, [messages]);
 
   // 4. Send Message Handler
-  const handleSend = async (e) => {
-    e.preventDefault();
-    if (!text.trim() || sending) return;
+ // In ChatModal.jsx -> handleSend
+const handleSend = async (e) => {
+  e.preventDefault();
+  if (!text.trim() || sending) return;
 
-    try {
-      setSending(true);
-      setError("");
+  try {
+    setSending(true);
+    setError("");
 
-      const response = await api.post("/chat/send", {
-        applicationId,
+    const response = await api.post("/chat/send", {
+      applicationId,
+      receiverId,
+      text: text.trim(),
+    });
+
+    const savedMsg = response.data;
+
+    // 1. Optimistic local update
+    setMessages((prev) => {
+      const isDuplicate = prev.some((msg) => msg._id === savedMsg._id);
+      return isDuplicate ? prev : [...prev, savedMsg];
+    });
+
+    // 2. Emit the FULL saved message object over socket
+    if (socket) {
+      socket.emit("send_message", {
+        ...savedMsg,
+        applicationId, // included for socket room targeting
         receiverId,
-        text: text.trim(),
       });
-
-      // Append sent message locally (Optimistic state update)
-      setMessages((prev) => {
-        const isDuplicate = prev.some((msg) => msg._id === response.data._id);
-        return isDuplicate ? prev : [...prev, response.data];
-      });
-
-      // Emit socket event for real-time broadcast to the receiver
-      if (socket) {
-        socket.emit("send_message", {
-          applicationId,
-          senderId: currentUserId,
-          receiverId,
-          text: text.trim(),
-        });
-      }
-
-      setText("");
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to send message.");
-    } finally {
-      setSending(false);
     }
-  };
 
+    setText("");
+  } catch (err) {
+    setError(err.response?.data?.message || "Failed to send message.");
+  } finally {
+    setSending(false);
+  }
+};
   return (
     <div
       style={{

@@ -113,19 +113,20 @@ io.on("connection", (socket) => {
   });
 
   // Handle real-time message broadcasting (DB save is already handled by REST API)
-  socket.on("send_message", (data) => {
-    const { applicationId, receiverId } = data;
+ socket.on("send_message", (data) => {
+  const appId = data.applicationId || (typeof data.application === "object" ? data.application?._id : data.application);
+  const recId = data.receiverId || (typeof data.receiver === "object" ? data.receiver?._id : data.receiver);
 
-    // 1. Broadcast message to application room
-    if (applicationId) {
-      io.to(applicationId).emit("receive_message", data);
-    }
+  // 1. Broadcast to the application chat room
+  if (appId) {
+    io.to(String(appId)).emit("receive_message", data);
+  }
 
-    // 2. Ping receiver's personal user room for navbar notification dot
-    if (receiverId) {
-      io.to(receiverId).emit("receive_message", data);
-    }
-  });
+  // 2. Ping receiver's personal room for navbar red dot
+  if (recId) {
+    io.to(String(recId)).emit("receive_message", data);
+  }
+});
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
