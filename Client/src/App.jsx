@@ -33,12 +33,21 @@ function App() {
         socket.emit("join_user_room", userId);
 
         const handleReceiveMessage = (newMessage) => {
-          const senderId = typeof newMessage.sender === "object" ? newMessage.sender?._id : newMessage.sender;
+          const senderId =
+            typeof newMessage.sender === "object"
+              ? newMessage.sender?._id
+              : newMessage.sender;
 
+          // 1. SENDER CHECK: Do not show red dot if WE sent the message
+          if (String(senderId) === String(userId)) return;
+
+          // 2. Only show red dot if drawer is closed
           if (!isDrawerOpen) {
             setHasUnreadMessages(true);
             if (senderId) {
-              setUnreadSenderIds((prev) => [...new Set([...prev, String(senderId)])]);
+              setUnreadSenderIds((prev) => [
+                ...new Set([...prev, String(senderId)]),
+              ]);
             }
           }
         };

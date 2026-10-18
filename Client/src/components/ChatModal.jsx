@@ -51,15 +51,23 @@ export default function ChatModal({
 
     // Handler for incoming messages broadcast by backend
     const handleReceiveMessage = (newMessage) => {
-      // Ensure the message belongs to this active conversation
       const msgAppId =
         typeof newMessage.application === "object"
           ? newMessage.application?._id
           : newMessage.application;
 
-      if (String(msgAppId) === String(applicationId)) {
+      const senderId =
+        typeof newMessage.sender === "object"
+          ? newMessage.sender?._id
+          : newMessage.sender;
+
+      // Filter 1: Check application room alignment
+      // Filter 2: Ignore messages sent by ourselves (prevent local duplicate render)
+      if (
+        String(msgAppId) === String(applicationId) &&
+        String(senderId) !== String(currentUserId)
+      ) {
         setMessages((prevMessages) => {
-          // Avoid duplicate entries (in case sender's post request already appended it)
           const isDuplicate = prevMessages.some(
             (msg) => msg._id && newMessage._id && msg._id === newMessage._id
           );
@@ -74,7 +82,7 @@ export default function ChatModal({
     return () => {
       socket.off("receive_message", handleReceiveMessage);
     };
-  }, [applicationId]);
+  }, [applicationId, currentUserId]);
 
   // 3. Auto Scroll on Message Array Update
   useEffect(() => {
@@ -96,13 +104,13 @@ export default function ChatModal({
         text: text.trim(),
       });
 
-      // Optimistically append sent message locally
+      // Append sent message locally (Optimistic state update)
       setMessages((prev) => {
         const isDuplicate = prev.some((msg) => msg._id === response.data._id);
         return isDuplicate ? prev : [...prev, response.data];
       });
 
-      // Emit socket event so backend broadcasts it to the room immediately
+      // Emit socket event for real-time broadcast to the receiver
       if (socket) {
         socket.emit("send_message", {
           applicationId,
