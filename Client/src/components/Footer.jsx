@@ -34,10 +34,10 @@ export default function Footer() {
               margin: "0 0 10px 0",
               display: "flex",
               alignItems: "center",
-              gap: "6px",
+              
             }}
           >
-            <span style={{ color: "#2563eb" }}>Hire</span>Zone
+            Hire<span style={{ color: "#2563eb" }}>Zone</span>
           </h2>
           <p
             style={{
