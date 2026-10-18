@@ -5,8 +5,8 @@ import ChatModal from "./ChatModal";
 export default function MessageDrawer({
   isOpen,
   onClose,
-  unreadSenderIds = [], // Array of sender IDs with unread messages passed from App.jsx
-  onSelectConversation, // Function to clear unread status for a specific sender
+  unreadApplicationIds = [], // Receives array of unread Application IDs
+  onSelectConversation, // Function to clear unread status for a specific application
 }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -278,7 +278,9 @@ export default function MessageDrawer({
                 typeof partner === "object" ? partner?._id || partner?.id : partner;
 
               const isHired = app.status === "Hired";
-              const isUnread = unreadSenderIds.includes(String(partnerId));
+
+              // Check if THIS SPECIFIC application ID has unread messages
+              const isUnread = unreadApplicationIds.includes(String(app._id));
 
               return (
                 <div
@@ -297,7 +299,7 @@ export default function MessageDrawer({
                   }}
                   onClick={() => {
                     if (onSelectConversation) {
-                      onSelectConversation(partnerId);
+                      onSelectConversation(app._id);
                     }
                     setActiveChat({
                       applicationId: app._id,
@@ -349,7 +351,7 @@ export default function MessageDrawer({
                       </strong>
 
                       <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        {/* Red NEW Badge if partner sent unread messages */}
+                        {/* Red NEW Badge if THIS application thread has unread messages */}
                         {isUnread && (
                           <span
                             style={{

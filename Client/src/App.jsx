@@ -18,7 +18,9 @@ import ApplyJob from "./pages/ApplyJob";
 function App() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
-  const [unreadSenderIds, setUnreadSenderIds] = useState([]); // Track senders with unread messages
+
+  // Track unread messages strictly by Application ID instead of Sender ID
+  const [unreadApplicationIds, setUnreadApplicationIds] = useState([]);
 
   useEffect(() => {
     const rawUser = localStorage.getItem("user");
@@ -41,12 +43,18 @@ function App() {
           // 1. SENDER CHECK: Do not show red dot if WE sent the message
           if (String(senderId) === String(userId)) return;
 
-          // 2. Only show red dot if drawer is closed
+          // Extract application ID safely from socket payload
+          const appId =
+            typeof newMessage.application === "object"
+              ? newMessage.application?._id
+              : newMessage.application || newMessage.applicationId;
+
+          // 2. Add the specific applicationId to the unread list
           if (!isDrawerOpen) {
             setHasUnreadMessages(true);
-            if (senderId) {
-              setUnreadSenderIds((prev) => [
-                ...new Set([...prev, String(senderId)]),
+            if (appId) {
+              setUnreadApplicationIds((prev) => [
+                ...new Set([...prev, String(appId)]),
               ]);
             }
           }
@@ -72,9 +80,11 @@ function App() {
     setIsDrawerOpen(false);
   };
 
-  // Helper to clear a specific sender's unread status when opening their chat
-  const handleClearSenderUnread = (senderId) => {
-    setUnreadSenderIds((prev) => prev.filter((id) => id !== String(senderId)));
+  // Clear unread badge for a SPECIFIC application when selected
+  const handleClearApplicationUnread = (appId) => {
+    setUnreadApplicationIds((prev) =>
+      prev.filter((id) => id !== String(appId))
+    );
   };
 
   return (
@@ -138,8 +148,8 @@ function App() {
       <MessageDrawer
         isOpen={isDrawerOpen}
         onClose={handleCloseDrawer}
-        unreadSenderIds={unreadSenderIds}
-        onSelectConversation={handleClearSenderUnread}
+        unreadApplicationIds={unreadApplicationIds}
+        onSelectConversation={handleClearApplicationUnread}
       />
     </Router>
   );
