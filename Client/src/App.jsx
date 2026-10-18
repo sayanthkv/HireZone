@@ -5,6 +5,7 @@ import { socket } from "./utils/socket";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import MessageDrawer from "./components/MessageDrawer";
+import Footer from "./components/Footer";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -14,7 +15,6 @@ import StudentDashboard from "./pages/StudentDashboard";
 import RecruiterDashboard from "./pages/RecruiterDashboard";
 import RecruiterApplicants from "./pages/RecruiterApplicants";
 import ApplyJob from "./pages/ApplyJob";
-import Footer from "./components/Footer";
 
 function App() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -90,68 +90,6 @@ function App() {
 
   return (
     <Router>
-      <Navbar
-        onOpenMessages={handleOpenDrawer}
-        hasUnreadMessages={hasUnreadMessages}
-      />
-
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-
-        <Route
-          path="/student-dashboard"
-          element={
-            <ProtectedRoute allowedRoles={["student"]}>
-              <StudentDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/apply/:jobId"
-          element={
-            <ProtectedRoute allowedRoles={["student"]}>
-              <ApplyJob />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/recruiter-dashboard"
-          element={
-            <ProtectedRoute allowedRoles={["recruiter"]}>
-              <RecruiterDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/recruiter/job/:jobId/applicants"
-          element={
-            <ProtectedRoute allowedRoles={["recruiter"]}>
-              <RecruiterApplicants />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute allowedRoles={["student", "recruiter"]}>
-              <Profile />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-
-      <MessageDrawer
-        isOpen={isDrawerOpen}
-        onClose={handleCloseDrawer}
-        unreadApplicationIds={unreadApplicationIds}
-        onSelectConversation={handleClearApplicationUnread}
-      />
       <div
         style={{
           minHeight: "100vh",
@@ -166,7 +104,54 @@ function App() {
 
         <div style={{ flex: 1 }}>
           <Routes>
-            {/* All your existing routes here */}
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+
+            <Route
+              path="/student-dashboard"
+              element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/apply/:jobId"
+              element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <ApplyJob />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/recruiter-dashboard"
+              element={
+                <ProtectedRoute allowedRoles={["recruiter"]}>
+                  <RecruiterDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/recruiter/job/:jobId/applicants"
+              element={
+                <ProtectedRoute allowedRoles={["recruiter"]}>
+                  <RecruiterApplicants />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute allowedRoles={["student", "recruiter"]}>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
 
@@ -177,7 +162,6 @@ function App() {
           onSelectConversation={handleClearApplicationUnread}
         />
 
-        {/* Footer component added here */}
         <Footer />
       </div>
     </Router>
