@@ -5,10 +5,10 @@ export default function Footer() {
   return (
     <footer
       style={{
-        backgroundColor: "#0f172a",
-        color: "#94a3b8",
-        borderTop: "1px solid #1e293b",
-        padding: "40px 24px 24px 24px",
+        backgroundColor: "#f8fafc", // Clean light grey matching page backgrounds
+        color: "#64748b",
+        borderTop: "1px solid #e2e8f0", // Subtle grey border matching navbar
+        padding: "40px 24px 20px 24px",
         marginTop: "auto",
         fontSize: "14px",
       }}
@@ -20,21 +20,21 @@ export default function Footer() {
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
           gap: "32px",
-          paddingBottom: "32px",
-          borderBottom: "1px solid #1e293b",
+          paddingBottom: "28px",
+          borderBottom: "1px solid #e2e8f0",
         }}
       >
         {/* Brand Column */}
         <div>
           <h2
             style={{
-              color: "#ffffff",
+              color: "#0f172a",
               fontSize: "20px",
               fontWeight: "700",
-              margin: "0 0 12px 0",
+              margin: "0 0 10px 0",
               display: "flex",
               alignItems: "center",
-              gap: "8px",
+              gap: "6px",
             }}
           >
             <span style={{ color: "#2563eb" }}>Hire</span>Zone
@@ -47,7 +47,7 @@ export default function Footer() {
               color: "#64748b",
             }}
           >
-            Connecting candidates with top recruiters through direct real-time messaging and automated candidate tracking.
+            Direct recruiter and candidate portal powered by real-time WebSockets and automated candidate status alerts.
           </p>
         </div>
 
@@ -55,13 +55,13 @@ export default function Footer() {
         <div>
           <h4
             style={{
-              color: "#f8fafc",
+              color: "#0f172a",
               fontSize: "14px",
               fontWeight: "600",
               margin: "0 0 12px 0",
             }}
           >
-            Navigation
+            Quick Links
           </h4>
           <ul
             style={{
@@ -80,7 +80,7 @@ export default function Footer() {
             </li>
             <li>
               <Link to="/student-dashboard" style={linkStyle}>
-                Jobs & Applications
+                Dashboard
               </Link>
             </li>
             <li>
@@ -95,13 +95,13 @@ export default function Footer() {
         <div>
           <h4
             style={{
-              color: "#f8fafc",
+              color: "#0f172a",
               fontSize: "14px",
               fontWeight: "600",
               margin: "0 0 12px 0",
             }}
           >
-            Powered By
+            Built With
           </h4>
           <p
             style={{
@@ -121,20 +121,20 @@ export default function Footer() {
         style={{
           maxWidth: "1200px",
           margin: "0 auto",
-          paddingTop: "20px",
+          paddingTop: "16px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           flexWrap: "wrap",
           gap: "12px",
           fontSize: "12px",
-          color: "#64748b",
+          color: "#94a3b8",
         }}
       >
         <p style={{ margin: 0 }}>
-          © {new Date().getFullYear()} HireZone. Built as a full-stack MERN project.
+          © {new Date().getFullYear()} HireZone. All rights reserved.
         </p>
-        <p style={{ margin: 0 }}>
+        <p style={{ margin: 0, fontWeight: "500", color: "#64748b" }}>
           Developed with Softroniics Institute
         </p>
       </div>
@@ -143,7 +143,9 @@ export default function Footer() {
 }
 
 const linkStyle = {
-  color: "#94a3b8",
+  color: "#64748b",
   textDecoration: "none",
+  fontSize: "13px",
+  fontWeight: "500",
   transition: "color 0.2s",
 };
