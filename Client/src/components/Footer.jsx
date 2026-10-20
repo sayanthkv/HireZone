@@ -117,27 +117,28 @@ export default function Footer() {
       </div>
 
       {/* Bottom Bar */}
-      <div
-        style={{
-          maxWidth: "1200px",
-          margin: "0 auto",
-          paddingTop: "16px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "12px",
-          fontSize: "12px",
-          color: "#94a3b8",
-        }}
-      >
-        <p style={{ margin: 0 }}>
-          © {new Date().getFullYear()} HireZone. All rights reserved.
-        </p>
-        <p style={{ margin: 0, fontWeight: "500", color: "#64748b" }}>
-          Developed with Softroniics Institute
-        </p>
-      </div>
+      {/* Bottom Bar */}
+<div
+  style={{
+    maxWidth: "1200px",
+    margin: "0 auto",
+    paddingTop: "16px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "12px",
+    fontSize: "12px",
+    color: "#94a3b8",
+  }}
+>
+  <p style={{ margin: 0 }}>
+    © {new Date().getFullYear()} HireZone. All rights reserved.
+  </p>
+  <p style={{ margin: 0, fontWeight: "500", color: "#64748b" }}>
+    Designed & Developed by Sayanth
+  </p>
+</div>
     </footer>
   );
 }
