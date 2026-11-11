@@ -20,6 +20,8 @@ export default function RecruiterApplicants() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState("");
+  const [sortByScore, setSortByScore] = useState(false);
+  const [expandedAiAppId, setExpandedAiAppId] = useState(null);
 
   // Retrieve logged-in user safely from localStorage
   const rawUser = localStorage.getItem("user");
@@ -61,15 +63,12 @@ export default function RecruiterApplicants() {
         status: newStatus,
       });
 
-      console.log("Status Update API Response:", res.data);
-
       const updatedStatus =
         res.data?.application?.status ||
         res.data?.status ||
         res.data?.updatedApplication?.status ||
         newStatus;
 
-      // Update state directly to re-render the card with the new status
       setApplicants((prev) =>
         prev.map((app) =>
           app._id === applicationId ? { ...app, status: updatedStatus } : app
@@ -83,6 +82,20 @@ export default function RecruiterApplicants() {
     } finally {
       setUpdatingId("");
     }
+  };
+
+  // Sort by AI Match Score when toggle is active
+  const displayedApplicants = [...applicants].sort((a, b) => {
+    if (!sortByScore) return 0;
+    const scoreA = a.aiEvaluation?.matchScore ?? -1;
+    const scoreB = b.aiEvaluation?.matchScore ?? -1;
+    return scoreB - scoreA;
+  });
+
+  const getScoreBadgeStyle = (score) => {
+    if (score >= 80) return { bg: "#dcfce7", color: "#166534", border: "#86efac" };
+    if (score >= 60) return { bg: "#fef3c7", color: "#92400e", border: "#fde68a" };
+    return { bg: "#f3f4f6", color: "#4b5563", border: "#e5e7eb" };
   };
 
   if (loading) {
@@ -108,6 +121,8 @@ export default function RecruiterApplicants() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          flexWrap: "wrap",
+          gap: "16px",
         }}
       >
         <div>
@@ -123,24 +138,44 @@ export default function RecruiterApplicants() {
           </p>
           <h1 style={{ fontSize: "28px", margin: "4px 0" }}>Job Applicants</h1>
           <p style={{ color: "#4b5563" }}>
-            Review candidates and manage their applications.
+            Review candidates, AI match insights, and manage applications.
           </p>
         </div>
 
-        <div
-          style={{
-            textAlign: "right",
-            background: "#f3f4f6",
-            padding: "10px 20px",
-            borderRadius: "8px",
-          }}
-        >
-          <strong style={{ fontSize: "24px", display: "block" }}>
-            {applicants.length}
-          </strong>
-          <span style={{ fontSize: "12px", color: "#6b7280" }}>
-            Applicants
-          </span>
+        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => setSortByScore((prev) => !prev)}
+            style={{
+              padding: "10px 16px",
+              borderRadius: "8px",
+              border: "1px solid #d1d5db",
+              backgroundColor: sortByScore ? "#2563eb" : "#ffffff",
+              color: sortByScore ? "#ffffff" : "#374151",
+              fontWeight: "600",
+              fontSize: "13px",
+              cursor: "pointer",
+              transition: "all 0.2s",
+            }}
+          >
+            {sortByScore ? "⚡ Sorted by AI Match" : "Sort by AI Match"}
+          </button>
+
+          <div
+            style={{
+              textAlign: "right",
+              background: "#f3f4f6",
+              padding: "8px 18px",
+              borderRadius: "8px",
+            }}
+          >
+            <strong style={{ fontSize: "22px", display: "block" }}>
+              {applicants.length}
+            </strong>
+            <span style={{ fontSize: "11px", color: "#6b7280" }}>
+              Applicants
+            </span>
+          </div>
         </div>
       </header>
 
@@ -158,7 +193,7 @@ export default function RecruiterApplicants() {
         </div>
       )}
 
-      {applicants.length === 0 && !error ? (
+      {displayedApplicants.length === 0 && !error ? (
         <div
           style={{
             padding: "40px",
@@ -174,7 +209,7 @@ export default function RecruiterApplicants() {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {applicants.map((application) => {
+          {displayedApplicants.map((application) => {
             const student = application.student || {};
             const studentId = student._id || student.id || student;
             const receiverId =
@@ -184,6 +219,10 @@ export default function RecruiterApplicants() {
             const isChatEligible =
               currentStatus.toLowerCase() === "shortlisted" ||
               currentStatus.toLowerCase() === "hired";
+
+            const aiData = application.aiEvaluation;
+            const scoreStyle = aiData ? getScoreBadgeStyle(aiData.matchScore) : null;
+            const isAiExpanded = expandedAiAppId === application._id;
 
             return (
               <article
@@ -201,6 +240,8 @@ export default function RecruiterApplicants() {
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "12px",
                   }}
                 >
                   <div
@@ -248,19 +289,117 @@ export default function RecruiterApplicants() {
                     </div>
                   </div>
 
-                  <span
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    {aiData && (
+                      <span
+                        style={{
+                          padding: "4px 10px",
+                          borderRadius: "16px",
+                          fontSize: "12px",
+                          fontWeight: "700",
+                          backgroundColor: scoreStyle.bg,
+                          color: scoreStyle.color,
+                          border: `1px solid ${scoreStyle.border}`,
+                        }}
+                      >
+                        ⚡ {aiData.matchScore}% Match
+                      </span>
+                    )}
+
+                    <span
+                      style={{
+                        padding: "4px 12px",
+                        borderRadius: "16px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        backgroundColor: isChatEligible ? "#dcfce7" : "#f3f4f6",
+                        color: isChatEligible ? "#166534" : "#374151",
+                      }}
+                    >
+                      {currentStatus}
+                    </span>
+                  </div>
+                </div>
+
+                {/* AI ATS Insights Section */}
+                {aiData && (
+                  <div
                     style={{
-                      padding: "4px 12px",
-                      borderRadius: "16px",
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      backgroundColor: isChatEligible ? "#dcfce7" : "#f3f4f6",
-                      color: isChatEligible ? "#166534" : "#374151",
+                      marginTop: "14px",
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "6px",
+                      padding: "12px",
                     }}
                   >
-                    {currentStatus}
-                  </span>
-                </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        cursor: "pointer",
+                      }}
+                      onClick={() =>
+                        setExpandedAiAppId(isAiExpanded ? null : application._id)
+                      }
+                    >
+                      <p style={{ margin: 0, fontSize: "13px", color: "#334155" }}>
+                        <strong>AI ATS Summary:</strong> {aiData.aiSummary}
+                      </p>
+                      <button
+                        type="button"
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#2563eb",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          cursor: "pointer",
+                          marginLeft: "8px",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {isAiExpanded ? "Hide Details ▲" : "View Breakdown ▼"}
+                      </button>
+                    </div>
+
+                    {isAiExpanded && (
+                      <div
+                        style={{
+                          marginTop: "10px",
+                          paddingTop: "10px",
+                          borderTop: "1px solid #e2e8f0",
+                          display: "flex",
+                          gap: "20px",
+                          flexWrap: "wrap",
+                          fontSize: "12px",
+                        }}
+                      >
+                        {aiData.keyStrengths?.length > 0 && (
+                          <div style={{ flex: 1, minWidth: "200px" }}>
+                            <strong style={{ color: "#166534" }}>Key Strengths:</strong>
+                            <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+                              {aiData.keyStrengths.map((str, i) => (
+                                <li key={i}>{str}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {aiData.missingSkills?.length > 0 && (
+                          <div style={{ flex: 1, minWidth: "200px" }}>
+                            <strong style={{ color: "#b45309" }}>Missing / Recommended:</strong>
+                            <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+                              {aiData.missingSkills.map((sk, i) => (
+                                <li key={i}>{sk}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {application.coverLetter && (
                   <div
@@ -327,7 +466,6 @@ export default function RecruiterApplicants() {
                       flexWrap: "wrap",
                     }}
                   >
-                    {/* Message Button rendered when Shortlisted or Hired */}
                     {isChatEligible && (
                       <button
                         type="button"
@@ -353,7 +491,6 @@ export default function RecruiterApplicants() {
                       </button>
                     )}
 
-                    {/* Quick Action Button for instant testing */}
                     <button
                       type="button"
                       style={{
@@ -373,7 +510,6 @@ export default function RecruiterApplicants() {
                       Shortlist
                     </button>
 
-                    {/* Status Dropdown */}
                     <label style={{ fontSize: "14px", color: "#4b5563" }}>
                       <select
                         value={currentStatus}

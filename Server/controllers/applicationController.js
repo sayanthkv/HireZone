@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Application = require("../models/Application");
 const Job = require("../models/Job");
 const sendEmail = require("../utils/sendEmail");
+const { analyzeCandidateMatch } = require("../services/geminiService");
 
 // Student applies for a job
 const applyForJob = async (req, res) => {
@@ -46,13 +47,28 @@ const applyForJob = async (req, res) => {
       });
     }
 
+    // 1. Run AI ATS Match analysis via Gemini 2.5
+    const candidateData = {
+      name: req.user.name,
+      skills: req.user.skills || [],
+      education: req.user.education,
+      bio: req.user.bio,
+      coverLetter,
+      resumeLink,
+    };
+
+    const aiEvaluation = await analyzeCandidateMatch(candidateData, job);
+
+    // 2. Persist Application with AI Analysis
     const application = await Application.create({
       job: jobId,
       student: userId,
       resumeLink,
       coverLetter,
+      aiEvaluation,
     });
 
+    // 3. Notify student via email
     if (req.user.email) {
       sendEmail({
         to: req.user.email,
@@ -68,6 +84,7 @@ const applyForJob = async (req, res) => {
       }).catch((err) => console.error("Failed to send student email:", err.message));
     }
 
+    // 4. Notify recruiter via email with AI Match Score
     const recruiter = job.postedBy;
     if (
       recruiter &&
@@ -77,12 +94,14 @@ const applyForJob = async (req, res) => {
     ) {
       sendEmail({
         to: recruiter.email,
-        subject: `HireZone: New Applicant for ${job.title}`,
+        subject: `HireZone: New Applicant for ${job.title} (${aiEvaluation.matchScore}% Match)`,
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px;">
             <h2 style="color: #2563eb;">New Applicant Alert</h2>
             <p>Hi <strong>${recruiter.name || "Recruiter"}</strong>,</p>
             <p><strong>${req.user.name || "A candidate"}</strong> (${req.user.email}) applied for <strong>${job.title}</strong>.</p>
+            <p><strong>AI ATS Match Score:</strong> ${aiEvaluation.matchScore}%</p>
+            <p><em>"${aiEvaluation.aiSummary}"</em></p>
           </div>
         `,
       }).catch((err) => console.error("Failed to send recruiter email:", err.message));
@@ -146,7 +165,6 @@ const getJobApplicants = async (req, res) => {
       return res.status(404).json({ message: "Job not found" });
     }
 
-    // Safely extract raw ID string whether postedBy is populated or an ObjectId
     const jobOwnerField = job.postedBy || job.recruiter;
     const jobOwnerId = (jobOwnerField?._id || jobOwnerField)?.toString();
 
