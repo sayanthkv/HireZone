@@ -11,6 +11,66 @@ const validJobTypes = [
   "Contract",
 ];
 
+// Helper to compute skill overlap score between student skills and a job
+const scoreJobForStudent = (job, normalizedStudentSkills) => {
+  const rawJobSkills = [
+    ...(Array.isArray(job.skills) ? job.skills : []),
+    ...(Array.isArray(job.requirements) ? job.requirements : []),
+  ];
+
+  // Deduplicate job skills case-insensitively
+  const uniqueJobSkills = [];
+  const seen = new Set();
+  for (const skill of rawJobSkills) {
+    if (typeof skill === "string" && skill.trim()) {
+      const lower = skill.trim().toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        uniqueJobSkills.push(skill.trim());
+      }
+    }
+  }
+
+  if (normalizedStudentSkills.length === 0 || uniqueJobSkills.length === 0) {
+    return {
+      ...job,
+      matchCount: 0,
+      matchPercentage: 0,
+      matchedSkills: [],
+    };
+  }
+
+  const matchedSkills = uniqueJobSkills.filter((jobSkill) => {
+    const lowerJobSkill = jobSkill.toLowerCase();
+    return normalizedStudentSkills.some(
+      (studentSkill) =>
+        studentSkill === lowerJobSkill ||
+        lowerJobSkill.includes(studentSkill) ||
+        studentSkill.includes(lowerJobSkill)
+    );
+  });
+
+  // Bonus weight if a student skill appears directly in the job title
+  const titleLower = (job.title || "").toLowerCase();
+  const titleBonus = normalizedStudentSkills.some((s) =>
+    titleLower.includes(s)
+  )
+    ? 0.5
+    : 0;
+
+  const matchPercentage = Math.min(
+    100,
+    Math.round((matchedSkills.length / uniqueJobSkills.length) * 100)
+  );
+
+  return {
+    ...job,
+    matchCount: matchedSkills.length + titleBonus,
+    matchPercentage,
+    matchedSkills,
+  };
+};
+
 // Create a new job listing
 const createJob = async (req, res) => {
   try {
@@ -27,7 +87,8 @@ const createJob = async (req, res) => {
     } = req.body;
 
     const finalJobType = type || jobType || "Full-time";
-    const finalSkills = skills || (Array.isArray(requirements) ? requirements : []);
+    const finalSkills =
+      skills || (Array.isArray(requirements) ? requirements : []);
     const userId = req.user._id || req.user.id;
 
     if (
@@ -85,7 +146,7 @@ const createJob = async (req, res) => {
   }
 };
 
-// Get all jobs for public / student listing
+// Get all jobs for public / student listing (with skill-relevance ranking)
 const getJobs = async (req, res) => {
   try {
     const {
@@ -94,6 +155,7 @@ const getJobs = async (req, res) => {
       jobType = "",
       type = "",
       sort = "latest",
+      skills = "",
       page = "1",
       limit = "10",
     } = req.query;
@@ -104,7 +166,8 @@ const getJobs = async (req, res) => {
       typeof search !== "string" ||
       typeof location !== "string" ||
       typeof selectedType !== "string" ||
-      typeof sort !== "string"
+      typeof sort !== "string" ||
+      typeof skills !== "string"
     ) {
       return res.status(400).json({
         message: "Invalid query parameters",
@@ -126,26 +189,30 @@ const getJobs = async (req, res) => {
       });
     }
 
-    const filter = {};
+    const andConditions = [];
 
     if (search.trim()) {
       const safeSearch = escapeRegex(search.trim());
 
-      filter.$or = [
-        { title: { $regex: safeSearch, $options: "i" } },
-        { company: { $regex: safeSearch, $options: "i" } },
-        { skills: { $regex: safeSearch, $options: "i" } },
-        { requirements: { $regex: safeSearch, $options: "i" } },
-      ];
+      andConditions.push({
+        $or: [
+          { title: { $regex: safeSearch, $options: "i" } },
+          { company: { $regex: safeSearch, $options: "i" } },
+          { skills: { $regex: safeSearch, $options: "i" } },
+          { requirements: { $regex: safeSearch, $options: "i" } },
+        ],
+      });
     }
 
     if (location.trim()) {
       const safeLocation = escapeRegex(location.trim());
 
-      filter.location = {
-        $regex: safeLocation,
-        $options: "i",
-      };
+      andConditions.push({
+        location: {
+          $regex: safeLocation,
+          $options: "i",
+        },
+      });
     }
 
     if (selectedType && selectedType !== "All") {
@@ -155,13 +222,18 @@ const getJobs = async (req, res) => {
         });
       }
 
-      filter.$or = [{ jobType: selectedType }, { type: selectedType }];
+      andConditions.push({
+        $or: [{ jobType: selectedType }, { type: selectedType }],
+      });
     }
+
+    const filter = andConditions.length > 0 ? { $and: andConditions } : {};
 
     const sortOptions = {
       latest: { createdAt: -1, _id: -1 },
       oldest: { createdAt: 1, _id: 1 },
       title: { title: 1, _id: 1 },
+      recommended: { createdAt: -1, _id: -1 },
     };
 
     if (!Object.prototype.hasOwnProperty.call(sortOptions, sort)) {
@@ -170,9 +242,45 @@ const getJobs = async (req, res) => {
       });
     }
 
+    const normalizedStudentSkills = skills
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+
     const skip = (pageNumber - 1) * limitNumber;
 
-    const [jobs, totalJobs] = await Promise.all([
+    // When sorting by skill relevance with student skills provided, rank across matching jobs
+    if (sort === "recommended" && normalizedStudentSkills.length > 0) {
+      const allMatchingJobs = await Job.find(filter)
+        .populate("postedBy", "name email")
+        .sort({ createdAt: -1, _id: -1 })
+        .lean();
+
+      const scoredJobs = allMatchingJobs
+        .map((job) => scoreJobForStudent(job, normalizedStudentSkills))
+        .sort((a, b) => {
+          if (b.matchCount !== a.matchCount) {
+            return b.matchCount - a.matchCount;
+          }
+          if (b.matchPercentage !== a.matchPercentage) {
+            return b.matchPercentage - a.matchPercentage;
+          }
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+
+      const totalJobs = scoredJobs.length;
+      const paginatedJobs = scoredJobs.slice(skip, skip + limitNumber);
+
+      return res.status(200).json({
+        count: paginatedJobs.length,
+        totalJobs,
+        page: pageNumber,
+        totalPages: Math.ceil(totalJobs / limitNumber),
+        jobs: paginatedJobs,
+      });
+    }
+
+    const [rawJobs, totalJobs] = await Promise.all([
       Job.find(filter)
         .populate("postedBy", "name email")
         .sort(sortOptions[sort])
@@ -182,6 +290,14 @@ const getJobs = async (req, res) => {
 
       Job.countDocuments(filter),
     ]);
+
+    // Still attach skill match metadata if student skills were sent
+    const jobs =
+      normalizedStudentSkills.length > 0
+        ? rawJobs.map((job) =>
+            scoreJobForStudent(job, normalizedStudentSkills)
+          )
+        : rawJobs;
 
     return res.status(200).json({
       count: jobs.length,
