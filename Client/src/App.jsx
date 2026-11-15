@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { socket } from "./utils/socket";
+import { useAuth } from "./context/AuthContext";
 
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -17,68 +18,75 @@ import RecruiterApplicants from "./pages/RecruiterApplicants";
 import ApplyJob from "./pages/ApplyJob";
 
 function App() {
+  const { user } = useAuth();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
 
   // Track unread messages strictly by Application ID
   const [unreadApplicationIds, setUnreadApplicationIds] = useState([]);
 
-  // NEW: Track which application chat session is currently active/open
+  // Track which application chat session is currently active/open
   const [activeChatAppId, setActiveChatAppId] = useState(null);
 
   useEffect(() => {
     const rawUser = localStorage.getItem("user");
-    if (!rawUser) return;
+    const parsedStorage = rawUser ? JSON.parse(rawUser) : {};
+    const storageUser = parsedStorage.user || parsedStorage;
+    const activeUser = user?.user || user || storageUser;
 
-    try {
-      const user = JSON.parse(rawUser);
-      const userId = (user._id || user.id)?.toString();
+    const userId = (activeUser?._id || activeUser?.id)?.toString();
+    if (!userId) return;
 
-      if (userId) {
-        if (!socket.connected) socket.connect();
-        socket.emit("join_user_room", userId);
-
-        const handleReceiveMessage = (newMessage) => {
-          const senderId =
-            typeof newMessage.sender === "object"
-              ? newMessage.sender?._id
-              : newMessage.sender;
-
-          // 1. SENDER CHECK: Ignore if WE sent the message
-          if (String(senderId) === String(userId)) return;
-
-          // Extract application ID safely from socket payload
-          const appId =
-            typeof newMessage.application === "object"
-              ? newMessage.application?._id
-              : newMessage.application || newMessage.applicationId;
-
-          const appIdStr = String(appId);
-
-          // 2. ACTIVE CHAT CHECK: If the user is currently viewing THIS chat session, do NOT mark as unread!
-          if (activeChatAppId && String(activeChatAppId) === appIdStr) {
-            return;
-          }
-
-          // 3. Otherwise, set unread state
-          setHasUnreadMessages(true);
-          if (appId) {
-            setUnreadApplicationIds((prev) => [
-              ...new Set([...prev, appIdStr]),
-            ]);
-          }
-        };
-
-        socket.on("receive_message", handleReceiveMessage);
-
-        return () => {
-          socket.off("receive_message", handleReceiveMessage);
-        };
-      }
-    } catch (err) {
-      console.error("Auth context parse error:", err);
+    if (!socket.connected) {
+      socket.connect();
     }
-  }, [isDrawerOpen, activeChatAppId]); // Depend on activeChatAppId
+
+    const joinPersonalRoom = () => {
+      socket.emit("join_user_room", userId);
+    };
+
+    // Join immediately if already connected, AND on every reconnect
+    if (socket.connected) {
+      joinPersonalRoom();
+    }
+    socket.on("connect", joinPersonalRoom);
+
+    const handleReceiveMessage = (newMessage) => {
+      const senderId =
+        typeof newMessage.sender === "object"
+          ? newMessage.sender?._id
+          : newMessage.sender;
+
+      // 1. SENDER CHECK: Ignore if WE sent the message
+      if (String(senderId) === String(userId)) return;
+
+      // Extract application ID safely from socket payload
+      const appId =
+        typeof newMessage.application === "object"
+          ? newMessage.application?._id
+          : newMessage.application || newMessage.applicationId;
+
+      const appIdStr = String(appId);
+
+      // 2. ACTIVE CHAT CHECK: If the user is currently viewing THIS chat session, do NOT mark as unread
+      if (activeChatAppId && String(activeChatAppId) === appIdStr) {
+        return;
+      }
+
+      // 3. Turn on Navbar red dot & track unread conversation
+      setHasUnreadMessages(true);
+      if (appId) {
+        setUnreadApplicationIds((prev) => [...new Set([...prev, appIdStr])]);
+      }
+    };
+
+    socket.on("receive_message", handleReceiveMessage);
+
+    return () => {
+      socket.off("connect", joinPersonalRoom);
+      socket.off("receive_message", handleReceiveMessage);
+    };
+  }, [user, isDrawerOpen, activeChatAppId]);
 
   const handleOpenDrawer = () => {
     setIsDrawerOpen(true);
@@ -162,7 +170,7 @@ function App() {
           onClose={handleCloseDrawer}
           unreadApplicationIds={unreadApplicationIds}
           onSelectConversation={handleClearApplicationUnread}
-          setActiveChatAppId={setActiveChatAppId} // Pass setter to MessageDrawer
+          setActiveChatAppId={setActiveChatAppId}
         />
 
         <Footer />

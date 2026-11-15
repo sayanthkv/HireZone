@@ -1,5 +1,6 @@
 const express = require("express");
 const http = require("http");
+const path = require("path");
 const { Server } = require("socket.io");
 const cors = require("cors");
 require("dotenv").config();
@@ -89,6 +90,9 @@ const io = new Server(server, {
 
 app.set("io", io);
 
+// Serve uploaded resume PDFs statically
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 // API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
@@ -103,32 +107,40 @@ io.on("connection", (socket) => {
   // Join user's personal room for notification pings
   socket.on("join_user_room", (userId) => {
     if (userId) {
-      socket.join(userId);
+      socket.join(String(userId));
       console.log(`Socket ${socket.id} joined user room: ${userId}`);
     }
   });
 
   // Join specific application chat room
   socket.on("join_room", (applicationId) => {
-    socket.join(applicationId);
+    socket.join(String(applicationId));
     console.log(`Socket ${socket.id} joined application room: ${applicationId}`);
   });
 
   // Handle real-time message broadcasting (DB save is already handled by REST API)
- socket.on("send_message", (data) => {
-  const appId = data.applicationId || (typeof data.application === "object" ? data.application?._id : data.application);
-  const recId = data.receiverId || (typeof data.receiver === "object" ? data.receiver?._id : data.receiver);
+  socket.on("send_message", (data) => {
+    const appId =
+      data.applicationId ||
+      (typeof data.application === "object"
+        ? data.application?._id
+        : data.application);
+    const recId =
+      data.receiverId ||
+      (typeof data.receiver === "object"
+        ? data.receiver?._id
+        : data.receiver);
 
-  // 1. Broadcast to the application chat room
-  if (appId) {
-    io.to(String(appId)).emit("receive_message", data);
-  }
+    // 1. Broadcast to the application chat room
+    if (appId) {
+      io.to(String(appId)).emit("receive_message", data);
+    }
 
-  // 2. Ping receiver's personal room for navbar red dot
-  if (recId) {
-    io.to(String(recId)).emit("receive_message", data);
-  }
-});
+    // 2. Ping receiver's personal room for navbar red dot
+    if (recId) {
+      io.to(String(recId)).emit("receive_message", data);
+    }
+  });
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);

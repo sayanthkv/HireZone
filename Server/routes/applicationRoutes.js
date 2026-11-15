@@ -8,10 +8,29 @@ const {
 } = require("../controllers/applicationController");
 const { protect } = require("../middleware/authMiddleware");
 const authorizeRoles = require("../middleware/authorizeRoles");
+const { uploadResume } = require("../middleware/uploadMiddleware");
+
+// Multer wrapper so file-type/size errors return clean 400 JSON instead of crashing
+const handleResumeUpload = (req, res, next) => {
+  uploadResume.single("resume")(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({
+        message: err.message || "Invalid resume file upload",
+      });
+    }
+    next();
+  });
+};
 
 // Student routes
-// UPDATED: Changed from "/apply/:jobId" to "/:jobId/apply"
-router.post("/:jobId/apply", protect, authorizeRoles("student"), applyForJob);
+router.post(
+  "/:jobId/apply",
+  protect,
+  authorizeRoles("student"),
+  handleResumeUpload,
+  applyForJob
+);
+
 router.get("/me", protect, authorizeRoles("student"), getMyApplications);
 
 // Recruiter routes

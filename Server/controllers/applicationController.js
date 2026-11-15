@@ -1,33 +1,22 @@
+const fs = require("fs");
+const path = require("path");
 const mongoose = require("mongoose");
+const pdfParse = require("pdf-parse");
 const Application = require("../models/Application");
 const Job = require("../models/Job");
 const sendEmail = require("../utils/sendEmail");
 const { analyzeCandidateMatch } = require("../services/geminiService");
+const { uploadDir } = require("../middleware/uploadMiddleware");
 
-// Student applies for a job
+// Student applies for a job (supports PDF upload + URL fallback)
 const applyForJob = async (req, res) => {
   try {
-    const { resumeLink, coverLetter } = req.body;
+    let { resumeLink, coverLetter } = req.body;
     const { jobId } = req.params;
     const userId = req.user._id || req.user.id;
 
     if (!mongoose.isValidObjectId(jobId)) {
       return res.status(400).json({ message: "Invalid job ID" });
-    }
-
-    if (resumeLink) {
-      try {
-        const url = new URL(resumeLink);
-        if (!["http:", "https:"].includes(url.protocol)) {
-          return res.status(400).json({
-            message: "Resume link must use HTTP or HTTPS",
-          });
-        }
-      } catch {
-        return res.status(400).json({
-          message: "Please provide a valid resume URL",
-        });
-      }
     }
 
     const job = await Job.findById(jobId).populate("postedBy", "name email");
@@ -47,7 +36,39 @@ const applyForJob = async (req, res) => {
       });
     }
 
-    // 1. Run AI ATS Match analysis via Gemini 2.5
+    let extractedResumeText = "";
+
+    // 1. If a PDF file was uploaded, parse its text and save it
+    if (req.file) {
+      try {
+        const pdfData = await pdfParse(req.file.buffer);
+        extractedResumeText = (pdfData.text || "").trim();
+      } catch (parseErr) {
+        console.error("PDF parse warning:", parseErr.message);
+      }
+
+      const safeFilename = `${userId}-${Date.now()}.pdf`;
+      const filePath = path.join(uploadDir, safeFilename);
+      fs.writeFileSync(filePath, req.file.buffer);
+
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      resumeLink = `${baseUrl}/uploads/resumes/${safeFilename}`;
+    } else if (resumeLink) {
+      try {
+        const url = new URL(resumeLink);
+        if (!["http:", "https:"].includes(url.protocol)) {
+          return res.status(400).json({
+            message: "Resume link must use HTTP or HTTPS",
+          });
+        }
+      } catch {
+        return res.status(400).json({
+          message: "Please provide a valid resume URL",
+        });
+      }
+    }
+
+    // 2. Run AI ATS Match analysis via Gemini 2.5 with extracted PDF text
     const candidateData = {
       name: req.user.name,
       skills: req.user.skills || [],
@@ -55,11 +76,12 @@ const applyForJob = async (req, res) => {
       bio: req.user.bio,
       coverLetter,
       resumeLink,
+      resumeText: extractedResumeText,
     };
 
     const aiEvaluation = await analyzeCandidateMatch(candidateData, job);
 
-    // 2. Persist Application with AI Analysis
+    // 3. Persist Application with AI Analysis
     const application = await Application.create({
       job: jobId,
       student: userId,
@@ -68,7 +90,7 @@ const applyForJob = async (req, res) => {
       aiEvaluation,
     });
 
-    // 3. Notify student via email
+    // 4. Notify student via email
     if (req.user.email) {
       sendEmail({
         to: req.user.email,
@@ -86,7 +108,7 @@ const applyForJob = async (req, res) => {
       );
     }
 
-    // 4. Notify recruiter via email with AI Match Score
+    // 5. Notify recruiter via email with AI Match Score
     const recruiter = job.postedBy;
     if (
       recruiter &&
