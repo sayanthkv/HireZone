@@ -87,6 +87,8 @@ const io = new Server(server, {
   transports: ["websocket", "polling"],
 });
 
+app.set("io", io);
+
 // API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);

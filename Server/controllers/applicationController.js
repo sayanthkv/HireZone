@@ -81,7 +81,9 @@ const applyForJob = async (req, res) => {
             <p>Best of luck!</p>
           </div>
         `,
-      }).catch((err) => console.error("Failed to send student email:", err.message));
+      }).catch((err) =>
+        console.error("Failed to send student email:", err.message)
+      );
     }
 
     // 4. Notify recruiter via email with AI Match Score
@@ -104,7 +106,9 @@ const applyForJob = async (req, res) => {
             <p><em>"${aiEvaluation.aiSummary}"</em></p>
           </div>
         `,
-      }).catch((err) => console.error("Failed to send recruiter email:", err.message));
+      }).catch((err) =>
+        console.error("Failed to send recruiter email:", err.message)
+      );
     }
 
     return res.status(201).json({
@@ -175,7 +179,10 @@ const getJobApplicants = async (req, res) => {
     }
 
     const applications = await Application.find({ job: jobId })
-      .populate("student", "name email phone location skills education resumeLink bio")
+      .populate(
+        "student",
+        "name email phone location skills education resumeLink bio"
+      )
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -191,14 +198,20 @@ const getJobApplicants = async (req, res) => {
   }
 };
 
-// Recruiter updates application status
+// Recruiter updates application status (with real-time Socket.io push)
 const updateApplicationStatus = async (req, res) => {
   try {
     const { applicationId } = req.params;
     const { status } = req.body;
     const userId = (req.user._id || req.user.id).toString();
 
-    const allowedStatuses = ["Pending", "Reviewed", "Shortlisted", "Rejected", "Hired"];
+    const allowedStatuses = [
+      "Pending",
+      "Reviewed",
+      "Shortlisted",
+      "Rejected",
+      "Hired",
+    ];
 
     if (!mongoose.isValidObjectId(applicationId)) {
       return res.status(400).json({ message: "Invalid application ID" });
@@ -208,7 +221,10 @@ const updateApplicationStatus = async (req, res) => {
       return res.status(400).json({ message: "Invalid application status" });
     }
 
-    const application = await Application.findById(applicationId).populate("student", "name email");
+    const application = await Application.findById(applicationId).populate(
+      "student",
+      "name email"
+    );
 
     if (!application) {
       return res.status(404).json({ message: "Application not found" });
@@ -232,6 +248,31 @@ const updateApplicationStatus = async (req, res) => {
     application.status = status;
     await application.save();
 
+    // 1. Real-time Socket.io push to the student's personal room
+    const io = req.app.get("io");
+    const studentId = (
+      application.student?._id || application.student
+    )?.toString();
+
+    console.log(
+      "📡 Emitting status update to student room:",
+      studentId,
+      "| io exists:",
+      Boolean(io)
+    );
+
+    if (io && studentId) {
+      io.to(studentId).emit("application_status_updated", {
+        applicationId: application._id,
+        jobId: job._id,
+        jobTitle: job.title,
+        company: job.company,
+        newStatus: status,
+        updatedAt: new Date(),
+      });
+    }
+
+    // 2. Send asynchronous email notification
     if (application.student && application.student.email) {
       sendEmail({
         to: application.student.email,
@@ -243,7 +284,9 @@ const updateApplicationStatus = async (req, res) => {
             <p>Your application status for <strong>${job.title}</strong> at <strong>${job.company}</strong> has been updated to: <strong>${status}</strong>.</p>
           </div>
         `,
-      }).catch((err) => console.error("Failed to send status email:", err.message));
+      }).catch((err) =>
+        console.error("Failed to send status email:", err.message)
+      );
     }
 
     return res.status(200).json({

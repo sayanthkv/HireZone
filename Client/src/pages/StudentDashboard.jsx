@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { io } from "socket.io-client";
 import api from "../services/api";
 import "./HireZoneFeatures.css";
 
@@ -11,6 +12,10 @@ const statusOptions = [
   "Rejected",
   "Hired",
 ];
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const SOCKET_URL =
+  import.meta.env.VITE_SOCKET_URL || API_URL.replace(/\/api\/?$/, "");
 
 const formatDate = (date) => {
   if (!date) return "Date unavailable";
@@ -32,6 +37,23 @@ export default function StudentDashboard() {
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [liveToast, setLiveToast] = useState(null);
+
+  // Extract logged-in student ID from localStorage OR fallback to fetched applications
+  const rawUser = localStorage.getItem("user");
+  const parsedUser = rawUser ? JSON.parse(rawUser) : {};
+  const userObj = parsedUser.user || parsedUser;
+
+  const studentIdFromApps =
+    applications.length > 0
+      ? typeof applications[0].student === "object"
+        ? applications[0].student?._id
+        : applications[0].student
+      : "";
+
+  const currentUserId = String(
+    userObj._id || userObj.id || studentIdFromApps || ""
+  );
 
   const fetchApplications = async () => {
     try {
@@ -53,6 +75,65 @@ export default function StudentDashboard() {
   useEffect(() => {
     fetchApplications();
   }, []);
+
+  // Real-time Socket.io listener for Kanban status updates
+  useEffect(() => {
+    if (!currentUserId) {
+      console.warn(
+        "⚠️ StudentDashboard: Waiting for user ID to join Socket room..."
+      );
+      return;
+    }
+
+    const socket = io(SOCKET_URL, {
+      withCredentials: true,
+      transports: ["websocket", "polling"],
+    });
+
+    socket.on("connect", () => {
+      console.log(
+        "✅ Student Socket connected:",
+        socket.id,
+        "| Joining room:",
+        currentUserId
+      );
+      socket.emit("join_user_room", currentUserId);
+    });
+
+    const handleStatusUpdate = (payload) => {
+      console.log("⚡ Live status update received:", payload);
+
+      // 1. Update the matching application status in real time
+      setApplications((prev) =>
+        prev.map((app) =>
+          String(app._id) === String(payload.applicationId)
+            ? { ...app, status: payload.newStatus }
+            : app
+        )
+      );
+
+      // 2. Trigger live toast alert
+      setLiveToast({
+        title: payload.jobTitle || "Application Update",
+        company: payload.company || "",
+        status: payload.newStatus,
+      });
+    };
+
+    socket.on("application_status_updated", handleStatusUpdate);
+
+    return () => {
+      socket.off("application_status_updated", handleStatusUpdate);
+      socket.disconnect();
+    };
+  }, [currentUserId]);
+
+  // Auto-dismiss toast after 6 seconds
+  useEffect(() => {
+    if (!liveToast) return;
+    const timer = setTimeout(() => setLiveToast(null), 6000);
+    return () => clearTimeout(timer);
+  }, [liveToast]);
 
   const filteredApplications = useMemo(() => {
     if (selectedStatus === "All") return applications;
@@ -76,6 +157,78 @@ export default function StudentDashboard() {
 
   return (
     <main className="dashboard-page">
+      {/* Live Real-Time Toast Notification */}
+      {liveToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            bottom: "24px",
+            right: "24px",
+            zIndex: 9999,
+            backgroundColor: "#0f172a",
+            color: "#ffffff",
+            padding: "14px 18px",
+            borderRadius: "10px",
+            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)",
+            borderLeft: "4px solid #2563eb",
+            maxWidth: "340px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: "12px",
+          }}
+        >
+          <div>
+            <p
+              style={{
+                margin: "0 0 4px 0",
+                fontSize: "11px",
+                fontWeight: "700",
+                letterSpacing: "0.8px",
+                color: "#60a5fa",
+                textTransform: "uppercase",
+              }}
+            >
+              ⚡ Live Status Update
+            </p>
+            <p style={{ margin: 0, fontSize: "13.5px", lineHeight: "1.4" }}>
+              Your application for <strong>{liveToast.title}</strong>
+              {liveToast.company ? ` at ${liveToast.company}` : ""} moved to{" "}
+              <span
+                style={{
+                  backgroundColor: "#2563eb",
+                  padding: "1px 7px",
+                  borderRadius: "6px",
+                  fontWeight: "600",
+                  fontSize: "12px",
+                }}
+              >
+                {liveToast.status}
+              </span>
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setLiveToast(null)}
+            aria-label="Close notification"
+            style={{
+              background: "none",
+              border: "none",
+              color: "#94a3b8",
+              fontSize: "16px",
+              cursor: "pointer",
+              padding: 0,
+              lineHeight: 1,
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <section className="dashboard-heading">
         <span className="eyebrow">STUDENT WORKSPACE</span>
         <h1>My applications</h1>
