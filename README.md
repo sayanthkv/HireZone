@@ -324,8 +324,8 @@ cd HireZone
 ## 👨‍💻 Author
 
 **Sayanth K V**
-* **GitHub:** [@sayanth](https://github.com/sayanth)
-* **LinkedIn:** [SAYANTH K V](https://linkedin.com)
+* **GitHub:** [@sayanth](https://github.com/sayanthkv)
+* **LinkedIn:** [SAYANTH K V](www.linkedin.com/in/sayanth-thedeveloper)
 * **Email:** [sayanthsajeev363@gmail.com](mailto:sayanthsajeev363@gmail.com)
 
 ---
